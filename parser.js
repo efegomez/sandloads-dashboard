@@ -23,80 +23,91 @@ function getTodayTabName() {
   });
   const parts = formatter.formatToParts(now);
   const month = parts.find(p => p.type === "month").value;
-  const day   = parts.find(p => p.type === "day").value;
-  return `${month}.${day}`;
+  const day = parts.find(p => p.type === "day").value;
+  return month + "." + day;
 }
 
 async function fetchSheetData() {
   const tab = getTodayTabName();
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${encodeURIComponent(tab)}?key=${CONFIG.GOOGLE_API_KEY}`;
+  const url = "https://sheets.googleapis.com/v4/spreadsheets/" + CONFIG.SHEET_ID + "/values/" + encodeURIComponent(tab) + "?key=" + CONFIG.GOOGLE_API_KEY;
   const res = await fetch(url);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    const err = await res.json().catch(function() { return {}; });
+    throw new Error(err.error ? err.error.message : "HTTP " + res.status);
   }
   const data = await res.json();
-  return { rows: data.values || [], tab };
+  return { rows: data.values || [], tab: tab };
 }
 
 function parseDriverRows(rows) {
   if (!rows || rows.length === 0) return [];
-  let headerIdx = rows.findIndex(r =>
-    r.some(c => /driver\s*name|chofer/i.test(c || ""))
-  );
-  let colMap, dataRows;
+  var headerIdx = rows.findIndex(function(r) {
+    return r.some(function(c) { return /driver\s*name|chofer/i.test(c || ""); });
+  });
+  var colMap, dataRows;
   if (headerIdx >= 0) {
-    const header = rows[headerIdx].map(c => (c || "").toLowerCase().trim());
-    const find = (...keys) => {
-      for (const k of keys) {
-        const i = header.findIndex(h => h.includes(k));
+    var header = rows[headerIdx].map(function(c) { return (c || "").toLowerCase().trim(); });
+    var find = function() {
+      var keys = Array.from(arguments);
+      for (var k of keys) {
+        var i = header.findIndex(function(h) { return h.includes(k); });
         if (i >= 0) return i;
       }
       return -1;
     };
     colMap = {
       driver: find("driver", "chofer", "name"),
-      truck:  find("truck", "#"),
-      ruta:   find("ruta", "route"),
-      qty:    find("qty", "total"),
+      truck: find("truck", "#"),
+      ruta: find("ruta", "route"),
+      qty: find("qty", "total"),
       status: find("status", "estado"),
-      photo:  find("photo", "foto"),
+      photo: find("photo", "foto")
     };
     dataRows = rows.slice(headerIdx + 1);
   } else {
     colMap = { driver: 0, truck: 1, ruta: 2, qty: 3, status: 4, photo: 5 };
     dataRows = rows;
   }
-  const drivers = [];
-  for (const row of dataRows) {
+  var drivers = [];
+  for (var row of dataRows) {
     if (!row || row.length === 0) continue;
-    const rawDriver = (row[colMap.driver] || "").trim();
-    const rawStatus = (row[colMap.status] || "").trim().toUpperCase();
-    const rawTruck  = (row[colMap.truck]  || "").toString().trim();
-    const rawRuta   = (row[colMap.ruta]   || "").trim();
-    const rawQty    = parseInt(row[colMap.qty] || "5") || 5;
+    var rawDriver = (row[colMap.driver] || "").trim();
+    var rawStatus = (row[colMap.status] || "").trim().toUpperCase();
+    var rawTruck = (row[colMap.truck] || "").toString().trim();
+    var rawRuta = (row[colMap.ruta] || "").trim();
+    var rawQty = parseInt(row[colMap.qty] || "5") || 5;
     if (!rawDriver) continue;
     if (!rawTruck && !STATUSES.includes(rawStatus)) continue;
     if (!rawRuta && !STATUSES.includes(rawStatus)) continue;
-    const photoCol = colMap.photo >= 0 ? colMap.photo : 5;
-    const loadCols = row.slice(photoCol + 1).filter(c =>
-      /^\d+$/.test((c || "").toString().trim())
-    );
-    const completedLoads = loadCols.length;
-    const noteCell = colMap.driver > 0 ? (row[0] || "").trim() : "";
-    const note = noteCell && !STATUSES.includes(noteCell.toUpperCase()) ? noteCell : "";
-    let status = rawStatus || "ACTIVO";
+    var photoCol = colMap.photo >= 0 ? colMap.photo : 5;
+    var loadCols = row.slice(photoCol + 1).filter(function(c) {
+      return /^\d+$/.test((c || "").toString().trim());
+    });
+    var completedLoads = loadCols.length;
+    var noteCell = colMap.driver > 0 ? (row[0] || "").trim() : "";
+    var note = (noteCell && !STATUSES.includes(noteCell.toUpperCase())) ? noteCell : "";
+    var status = rawStatus || "ACTIVO";
     if (completedLoads >= rawQty && rawQty > 0) status = "DONE";
     drivers.push({
-      name: rawDriver, truck: rawTruck, ruta: rawRuta,
-      qty: rawQty, done: completedLoads, status,
-      startHour: parseRouteHour(rawRuta), note,
+      name: rawDriver,
+      truck: rawTruck,
+      ruta: rawRuta,
+      qty: rawQty,
+      done: completedLoads,
+      status: status,
+      startHour: parseRouteHour(rawRuta),
+      note: note
     });
   }
-  drivers.sort((a, b) => a.startHour - b.startHour);
+  drivers.sort(function(a, b) { return a.startHour - b.startHour; });
   return drivers;
 }
 
 async function loadDriverData() {
-  const { rows, tab } = await fetchSheetData();
-  if (!rows || rows.length
+  var result = await fetchSheetData();
+  var rows = result.rows;
+  var tab = result.tab;
+  if (!rows || rows.length === 0) return { drivers: null, tab: tab };
+  var drivers = parseDriverRows(rows);
+  return { drivers: drivers, tab: tab };
+}

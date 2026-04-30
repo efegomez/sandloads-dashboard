@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sandloads Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <div class="logo">SANDLOADS</div>
+        <div class="date-badge" id="date-badge"></div>
+      </div>
+      <div class="header-right">
+        <div class="refresh-control">
+          <label>Refresh cada</label>
+          <select id="refresh-interval">
+            <option value="1">1 min</option>
+            <option value="5" selected>5 min</option>
+            <option value="10">10 min</option>
+            <option value="15">15 min</option>
+            <option value="30">30 min</option>
+          </select>
+        </div>
+        <button id="refresh-btn" onclick="loadData()">
+          <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Actualizar
+        </button>
+        <div class="last-update">
+          <span>Última actualización</span>
+          <strong id="update-time">—</strong>
+        </div>
+      </div>
+    </header>
+
+    <div id="status-bar" class="status-bar hidden"></div>
+
+    <section class="metrics" id="metrics"></section>
+
+    <section class="chart-section">
+      <div class="chart-container" id="chart-container">
+        <div class="loading-state" id="loading-state">
+          <div class="spinner"></div>
+          <p>Cargando datos...</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="legend">
+      <div class="legend-item"><span class="dot done"></span>Carga completada</div>
+      <div class="legend-item"><span class="dot active"></span>En progreso / pendiente</div>
+      <div class="legend-item"><span class="dot roto"></span>Fuera de servicio</div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="parser.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

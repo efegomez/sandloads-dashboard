@@ -1,9 +1,9 @@
 const STATUSES = ["ACTIVO", "STAGE", "DONE", "ROTO", "STANDBY"];
 
 function parseRouteHour(ruta) {
-  if (!ruta) return 6;
-  const lower = ruta.toLowerCase();
-  const map = {
+  if (!ruta) return -1;
+  var lower = ruta.toLowerCase();
+  var map = {
     "12am": 0, "1am": 1, "2am": 2, "3am": 3, "4am": 4, "5am": 5,
     "6am": 6, "7am": 7, "8am": 8, "9am": 9, "10am": 10, "11am": 11,
     "12pm": 12, "1pm": 13, "2pm": 14, "3pm": 15, "4pm": 16, "5pm": 17,
@@ -13,11 +13,6 @@ function parseRouteHour(ruta) {
     if (lower.includes(k)) return map[k];
   }
   return -1;
-}
-
-function isValidRuta(ruta) {
-  if (!ruta) return false;
-  return parseRouteHour(ruta) >= 0;
 }
 
 function getTodayTabName() {
@@ -47,70 +42,86 @@ async function fetchSheetData() {
 function parseDriverRows(rows) {
   if (!rows || rows.length === 0) return [];
 
-  var headerIdx = rows.findIndex(function(r) {
-    return r.some(function(c) { return /driver\s*name|chofer/i.test(c || ""); });
-  });
-
-  var colMap, dataRows;
-  if (headerIdx >= 0) {
-    var header = rows[headerIdx].map(function(c) { return (c || "").toLowerCase().trim(); });
-    var find = function() {
-      var keys = Array.from(arguments);
-      for (var k of keys) {
-        var i = header.findIndex(function(h) { return h.includes(k); });
-        if (i >= 0) return i;
+  // Find header row containing "Driver name"
+  var headerIdx = -1;
+  for (var i = 0; i < rows.length; i++) {
+    for (var j = 0; j < rows[i].length; j++) {
+      if (/driver\s*name/i.test(rows[i][j] || "")) {
+        headerIdx = i;
+        break;
       }
-      return -1;
-    };
-    colMap = {
-      driver: find("driver", "chofer", "name"),
-      truck: find("truck", "#"),
-      ruta: find("ruta", "route"),
-      qty: find("qty", "total"),
-      status: find("status", "estado"),
-      photo: find("photo", "foto")
-    };
-    dataRows = rows.slice(headerIdx + 1);
-  } else {
-    colMap = { driver: 0, truck: 1, ruta: 2, qty: 3, status: 4, photo: 5 };
-    dataRows = rows;
+    }
+    if (headerIdx >= 0) break;
   }
 
+  if (headerIdx < 0) return [];
+
+  var header = rows[headerIdx].map(function(c) { return (c || "").toLowerCase().trim(); });
+
+  var find = function() {
+    var keys = Array.from(arguments);
+    for (var k of keys) {
+      var idx = header.findIndex(function(h) { return h.includes(k); });
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+
+  var colMap = {
+    driver: find("driver", "name"),
+    truck:  find("truck", "#"),
+    ruta:   find("ruta", "route"),
+    qty:    find("qty", "total"),
+    status: find("status", "estado"),
+    photo:  find("photo", "foto")
+  };
+
+  var dataRows = rows.slice(headerIdx + 1);
   var drivers = [];
+  var emptyCount = 0;
 
   for (var row of dataRows) {
-    if (!row || row.length === 0) break;
+    // Skip blank rows but allow up to 1 in a row
+    var rowText = (row || []).join("").trim();
+    if (!rowText) {
+      emptyCount++;
+      if (emptyCount > 1) break;
+      continue;
+    }
+    emptyCount = 0;
 
     var rawDriver = (row[colMap.driver] || "").trim();
-    var rawRuta = (row[colMap.ruta] || "").trim();
+    var rawRuta   = (row[colMap.ruta]   || "").trim();
     var rawStatus = (row[colMap.status] || "").trim().toUpperCase();
-    var rawTruck = (row[colMap.truck] || "").toString().trim();
-    var rawQty = parseInt(row[colMap.qty] || "5") || 5;
+    var rawTruck  = (row[colMap.truck]  || "").toString().trim();
+    var rawQty    = parseInt(row[colMap.qty] || "5") || 5;
 
-    if (!rawDriver) break;
-    if (!isValidRuta(rawRuta)) break;
+    // Must have a driver name AND a valid route with a time
+    if (!rawDriver) continue;
+    if (parseRouteHour(rawRuta) < 0) continue;
 
-    var photoCol = colMap.photo >= 0 ? colMap.photo : 5;
+    var photoCol = colMap.photo >= 0 ? colMap.photo : 7;
     var loadCols = row.slice(photoCol + 1).filter(function(c) {
-      return /^\d+$/.test((c || "").toString().trim());
+      return /^\d{5,}$/.test((c || "").toString().trim());
     });
     var completedLoads = loadCols.length;
 
-    var noteCell = colMap.driver > 0 ? (row[0] || "").trim() : "";
+    // Note is anything in column A (index 0) that isn't a status
+    var noteCell = (row[0] || "").trim();
     var note = (noteCell && !STATUSES.includes(noteCell.toUpperCase())) ? noteCell : "";
 
     var status = rawStatus || "ACTIVO";
     if (completedLoads >= rawQty && rawQty > 0) status = "DONE";
 
     drivers.push({
-      name: rawDriver,
-      truck: rawTruck,
-      ruta: rawRuta,
-      qty: rawQty,
-      done: completedLoads,
-      status: status,
+      name:      rawDriver,
+      truck:     rawTruck,
+      ruta:      rawRuta,
+      qty:       rawQty,
+      done:      completedLoads,
+      status:    status,
       startHour: parseRouteHour(rawRuta),
-      note: note
+      note:      note
     });
   }
 

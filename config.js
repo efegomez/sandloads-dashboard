@@ -5,7 +5,7 @@
 
 const CONFIG = {
   // 1. Tu API Key de Google (Google Cloud Console → APIs → Sheets API)
-  GOOGLE_API_KEY: "AIzaSyDxNpc2JTcpmCMndsTo7t_llqbAPW8K-Eo",
+  GOOGLE_API_KEY: "AIzaSyAnfpxHtfQG89DfRuBFJkzBPR0IorGgwvc",
 
   // 2. ID del Google Sheet (está en la URL del sheet)
   //    https://docs.google.com/spreadsheets/d/  →ESTE_ID←  /edit

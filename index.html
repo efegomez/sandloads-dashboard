@@ -68,7 +68,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 
 <script>
 const SHEET_ID  = "1FlPvLr6eHExUb14CqPtPTUQmlHgUokIjLHFsidWzk-Y";
-const API_KEY   = "AIzaSyDxNpc2JTcpmCMndsTo7t_llqbAPW8K-Eo";
+const API_KEY   = "AIzaSyAnfpxHtfQG89DfRuBFJkzBPR0IorGgwvc";
 const REFRESH_MS = 5 * 60 * 1000;
 
 const PB     = {accent:"#00E676", dim:"#00a152", badgeCls:"pb-badge"};
@@ -100,7 +100,7 @@ function nameClass(d){
   return "t-dname";
 }
 function fmtH(h){return h===0?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm";}
-const MIN_H=0,MAX_H=16;
+const MIN_H=0,MAX_H=20;
 function pct(h){return((h-MIN_H)/(MAX_H-MIN_H)*100).toFixed(2);}
 
 // Fallback: datos actuales de la sesión
@@ -114,15 +114,10 @@ const SAMPLE=[
   {name:"Leandro", truck:"206", startH:4, qty:5,photos:4,status:"ACTIVO",    type:"PB"},
   {name:"Yasiel",  truck:"960", startH:4, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
   {name:"Santiago",truck:"961", startH:5, qty:5,photos:2,status:"ACTIVO",    type:"PB"},
-  {name:"Yordis",  truck:"2947",startH:13,qty:5,photos:0,status:"ACTIVO",    type:"PB"},
+  {name:"Yordis",  truck:"2947",startH:13,qty:5,photos:1,status:"ACTIVO",    type:"CRANE"},
 ];
 
 function parseRows(rows){
-  const now = new Date();
-  const mm  = String(now.getMonth()+1).padStart(2,'0');
-  const dd  = String(now.getDate()).padStart(2,'0');
-  const todayKey = mm+"."+dd;
-
   const STATUS_NORM={
     "activo":"ACTIVO","active":"ACTIVO","done":"DONE",
     "roto":"ROTO","broken":"ROTO","repairing":"REPAIRING",
@@ -130,26 +125,41 @@ function parseRows(rows){
     "pendiente":"pendiente","pending":"pendiente",
   };
 
-  const drivers=[];
-  let inBlock=false;
-
-  for(const cells of rows){
-    const c0=(cells[0]||"").trim();
-    if(c0===todayKey){inBlock=true;continue;}
-    if(inBlock&&/^\d{2}\.\d{2}$/.test(c0)&&c0!==todayKey) break;
-    if(!inBlock) continue;
-
+  // Find the LAST block that has "Nash" rows - that's today's data
+  // Collect all candidate rows with Nash
+  const nashRows=[];
+  for(let i=0;i<rows.length;i++){
+    const cells=rows[i];
     const rutaIdx=cells.findIndex(v=>/nash/i.test(v||""));
     if(rutaIdx<0) continue;
-
-    const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":"PB";
-
     const namePart=cells.slice(0,rutaIdx)
-      .filter(v=>v&&v.trim()&&!/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon/i.test(v))
+      .filter(v=>v&&v.trim()&&!/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon|Waiting|SACADO|5\s*am|medio/i.test(v))
       .pop()||"";
     if(!namePart) continue;
+    nashRows.push({rowIdx:i, cells, rutaIdx, namePart});
+  }
 
+  if(nashRows.length===0) return [];
+
+  // Find the last contiguous block of nash rows
+  // Group rows that are close together (within 15 rows of each other)
+  let bestBlock=[];
+  let currentBlock=[nashRows[0]];
+  for(let i=1;i<nashRows.length;i++){
+    if(nashRows[i].rowIdx - nashRows[i-1].rowIdx <= 15){
+      currentBlock.push(nashRows[i]);
+    } else {
+      if(currentBlock.length>bestBlock.length) bestBlock=currentBlock;
+      currentBlock=[nashRows[i]];
+    }
+  }
+  if(currentBlock.length>bestBlock.length) bestBlock=currentBlock;
+
+  // Parse the best block
+  const drivers=[];
+  for(const {cells, rutaIdx, namePart} of bestBlock){
+    const ruta=cells[rutaIdx]||"";
+    const type=/crane/i.test(ruta)?"CRANE":"PB";
     const qty=parseInt(cells[rutaIdx+1]||"")||5;
     const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
     const status=STATUS_NORM[stRaw]||(stRaw?"ACTIVO":"pendiente");
@@ -164,7 +174,6 @@ function parseRows(rows){
       if(ap==="am"&&h===12) h=0;
       startH=h;
     }
-
     drivers.push({name:namePart.trim().split(/\s+/)[0],truck:"",startH,qty,photos,status,type});
   }
   return drivers;
@@ -236,13 +245,16 @@ function render(DRIVERS){
   function row(d){
     const pal=palette(d);
     const startP=parseFloat(pct(d.startH));
-    const endP=parseFloat(pct(Math.min(d.startH+d.qty*1.5+0.5,MAX_H-0.3)));
-    const span=endP-startP;
+    const bSize=18;
+    const minSpan=25;
+    const naturalSpan=parseFloat(pct(d.startH+d.qty*1.5+0.5))-startP;
+    const span=Math.max(naturalSpan,minSpan);
+    const cappedStart=Math.min(startP, 98-span-8);
     let bubbles="";
     for(let i=0;i<d.qty;i++){
       const done=i<d.photos;
-      const lp=startP+span*(i+0.5)/d.qty;
-      bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:20px;height:20px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
+      const lp=cappedStart+span*(i+0.5)/d.qty;
+      bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
     }
     const badge=`<span class='t-badge ${pal.badgeCls}'>${d.type==="CRANE"?"CRANE→Nash":"PB→Nash"}</span>`;
     const label=d.truck?fmtH(d.startH)+" · #"+d.truck:fmtH(d.startH);

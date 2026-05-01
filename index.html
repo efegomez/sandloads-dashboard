@@ -132,8 +132,14 @@ function parseRows(rows){
     const cells=rows[i];
     const rutaIdx=cells.findIndex(v=>/nash/i.test(v||""));
     if(rutaIdx<0) continue;
+    // name: last non-empty, non-numeric, non-company cell before ruta
     const namePart=cells.slice(0,rutaIdx)
-      .filter(v=>v&&v.trim()&&!/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon|Waiting|SACADO|5\s*am|medio/i.test(v))
+      .filter(v=>{
+        if(!v||!v.trim()) return false;
+        if(/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon|Waiting|SACADO|5\s*am|medio/i.test(v)) return false;
+        if(/^\d+$/.test(v.trim())) return false; // skip pure numbers (truck #)
+        return true;
+      })
       .pop()||"";
     if(!namePart) continue;
     nashRows.push({rowIdx:i, cells, rutaIdx, namePart});
@@ -160,6 +166,7 @@ function parseRows(rows){
   for(const {cells, rutaIdx, namePart} of bestBlock){
     const ruta=cells[rutaIdx]||"";
     const type=/crane/i.test(ruta)?"CRANE":"PB";
+    const truckPart=cells.slice(0,rutaIdx).filter(v=>v&&/^\d+$/.test(v.trim())).pop()||"";
     const qty=parseInt(cells[rutaIdx+1]||"")||5;
     const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
     const status=STATUS_NORM[stRaw]||(stRaw?"ACTIVO":"pendiente");
@@ -174,7 +181,7 @@ function parseRows(rows){
       if(ap==="am"&&h===12) h=0;
       startH=h;
     }
-    drivers.push({name:namePart.trim().split(/\s+/)[0],truck:"",startH,qty,photos,status,type});
+    drivers.push({name:namePart.trim().split(/\s+/)[0],truck:truckPart,startH,qty,photos,status,type});
   }
   return drivers;
 }

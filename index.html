@@ -103,17 +103,18 @@ function fmtH(h){return h===0?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm";}
 const MIN_H=0, MAX_H=20;
 function pct(h){return((h-MIN_H)/(MAX_H-MIN_H)*100).toFixed(2);}
 
-// Fallback — datos actuales del sheet 05/02
+// Fallback data
 const SAMPLE=[
   {name:"Jesus",   truck:"0385",startH:0, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
   {name:"Miguel",  truck:"959", startH:0, qty:5,photos:5,status:"DONE",      type:"PB"},
-  {name:"Pedro",   truck:"2026",startH:0, qty:5,photos:0,status:"REPAIRING", type:"PB"},
-  {name:"Yanquiel",truck:"122", startH:2, qty:5,photos:5,status:"ACTIVO",    type:"PB"},
+  {name:"Yanquiel",truck:"122", startH:2, qty:5,photos:5,status:"DONE",      type:"PB"},
   {name:"Felix",   truck:"24",  startH:2, qty:5,photos:0,status:"ROTO",      type:"PB"},
-  {name:"Leandro", truck:"206", startH:4, qty:5,photos:4,status:"ACTIVO",    type:"PB"},
+  {name:"Leandro", truck:"206", startH:4, qty:5,photos:4,status:"DONE",      type:"PB"},
   {name:"Yasiel",  truck:"960", startH:4, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
   {name:"Santiago",truck:"961", startH:5, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
-  {name:"Yosvani", truck:"88",  startH:13,qty:5,photos:3,status:"ACTIVO",    type:"PB"},
+  {name:"Yosvani", truck:"88",  startH:13,qty:5,photos:2,status:"ACTIVO",    type:"PB"},
+  {name:"Doanys",  truck:"804", startH:0, qty:5,photos:1,status:"ACTIVO",    type:"PB"},
+  {name:"Pedro",   truck:"2026",startH:0, qty:5,photos:0,status:"REPAIRING", type:"PB"},
   {name:"Juan",    truck:"27",  startH:3, qty:5,photos:5,status:"ACTIVO",    type:"CRANE"},
   {name:"Yordis",  truck:"2947",startH:0, qty:5,photos:2,status:"ACTIVO",    type:"CRANE"},
 ];
@@ -125,33 +126,41 @@ const STATUS_NORM={
   "pendiente":"pendiente","pending":"pendiente",
 };
 
-function parseRows(rows){
-  // Collect ALL rows that have a Nash route
-  const nashRows=[];
-  for(let i=0;i<rows.length;i++){
+function getTodaySheetName(){
+  const now=new Date();
+  const mm=String(now.getMonth()+1).padStart(2,'0');
+  const dd=String(now.getDate()).padStart(2,'0');
+  return mm+"."+dd; // e.g. "05.01"
+}
+
+function parseSheet(rows){
+  // Row 1 = header (Driver name, Truck#, RUTA, Qty, STATUS, PHOTO, 1..16)
+  // Data starts at row 2 (index 1)
+  // Col C (index 2) = Driver name
+  // Col D (index 3) = Truck #
+  // Col E (index 4) = RUTA
+  // Col F (index 5) = Qty
+  // Col G (index 6) = STATUS
+  // Col H (index 7) = PHOTO label
+  // Col I onward (index 8+) = photo ticket numbers
+
+  const drivers=[];
+  for(let i=1;i<rows.length;i++){
     const cells=rows[i];
-    const rutaIdx=cells.findIndex(v=>/\bnash\b/i.test(v||""));
-    if(rutaIdx<0) continue;
-    const ruta=cells[rutaIdx]||"";
-    // Must look like a real route: "PB To Nash Xam" or "CRANE To Nash"
-    if(!/\b(pb|crane|vista)\b/i.test(ruta)) continue;
-    // Skip co-driver rows
-    if(/co-driver|waiting|sacado|mantenimiento/i.test(ruta)) continue;
+    const ruta=(cells[4]||"").trim();
+    if(!ruta||!/nash/i.test(ruta)) continue;
+    if(/co-driver|waiting|sacado/i.test(ruta)) continue;
 
-    // Name: last non-empty, non-numeric, non-company cell before ruta
-    const namePart=cells.slice(0,rutaIdx).filter(v=>{
-      if(!v||!v.trim()) return false;
-      if(/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon|Waiting|SACADO|Roto|REPAIRING|sale|medio|entra/i.test(v)) return false;
-      if(/^\d+$/.test(v.trim())) return false;
-      return true;
-    }).pop()||"";
-    if(!namePart) continue;
+    const name=(cells[2]||"").trim();
+    if(!name) continue;
 
-    const truckPart=cells.slice(0,rutaIdx).filter(v=>v&&/^T?\d+$/.test(v.trim())).pop()||"";
-    const qty=parseInt(cells[rutaIdx+1]||"")||5;
-    const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
+    const truck=(cells[3]||"").trim();
+    const qty=parseInt(cells[5]||"")||5;
+    const stRaw=(cells[6]||"").toLowerCase().trim();
     const status=STATUS_NORM[stRaw]||(stRaw?"ACTIVO":"pendiente");
-    const photos=cells.slice(rutaIdx+3).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
+
+    // Photos start at col I (index 8)
+    const photos=cells.slice(8).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
 
     const type=/crane|vista/i.test(ruta)?"CRANE":"PB";
     const hm=ruta.match(/(\d{1,2})\s*(am|pm)/i);
@@ -163,72 +172,48 @@ function parseRows(rows){
       if(ap==="am"&&h===12) h=0;
       startH=h;
     }
-    nashRows.push({rowIdx:i,name:namePart.trim().split(/\s+/)[0],truck:truckPart,startH,qty,photos,status,type});
+
+    drivers.push({
+      name: name.split(/\s+/)[0],
+      truck, startH, qty, photos, status, type
+    });
   }
-
-  if(nashRows.length===0) return [];
-
-  // Find the FIRST large contiguous block — that's today (top of sheet)
-  // Group by proximity
-  const blocks=[];
-  let cur=[nashRows[0]];
-  for(let i=1;i<nashRows.length;i++){
-    if(nashRows[i].rowIdx-nashRows[i-1].rowIdx<=20){
-      cur.push(nashRows[i]);
-    } else {
-      blocks.push(cur);
-      cur=[nashRows[i]];
-    }
-  }
-  blocks.push(cur);
-
-  // Pick the largest block
-  blocks.sort((a,b)=>b.length-a.length);
-  const best=blocks[0];
-
-  // Deduplicate by name (keep last occurrence = most updated)
-  const seen=new Map();
-  for(const r of best) seen.set(r.name.toLowerCase(),r);
-  return [...seen.values()];
-}
-
-async function fetchAllRows(){
-  const metaRes=await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?key=${API_KEY}`,
-    {referrerPolicy:"unsafe-url"}
-  );
-  const meta=await metaRes.json();
-  if(meta.error) throw new Error(meta.error.message);
-  const monthNames=["Enero","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  const curMonth=monthNames[new Date().getMonth()];
-  const sheets=meta.sheets||[];
-  const sorted=[...sheets].sort((a,b)=>{
-    if(a.properties.title===curMonth) return -1;
-    if(b.properties.title===curMonth) return 1;
-    return 0;
-  });
-  let allRows=[];
-  for(const sh of sorted.slice(0,2)){
-    const name=sh.properties.title;
-    const res=await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(name)}?key=${API_KEY}`,
-      {referrerPolicy:"unsafe-url"}
-    );
-    const json=await res.json();
-    if(json.values) allRows=allRows.concat(json.values);
-  }
-  return allRows;
+  return drivers;
 }
 
 async function loadData(){
   document.getElementById("upd").textContent="Actualizando...";
   document.getElementById("msg-box").innerHTML="";
   try{
-    const rows=await fetchAllRows();
-    const drivers=parseRows(rows);
+    // 1. Get sheet metadata to find today's tab
+    const metaRes=await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?key=${API_KEY}`,
+      {referrerPolicy:"unsafe-url"}
+    );
+    const meta=await metaRes.json();
+    if(meta.error) throw new Error(meta.error.message);
+
+    // 2. Find today's tab by name (e.g. "05.01")
+    const todayName=getTodaySheetName();
+    const sheets=meta.sheets||[];
+    const todaySheet=sheets.find(s=>s.properties.title===todayName);
+
+    if(!todaySheet) throw new Error(`No se encontró la pestaña "${todayName}"`);
+
+    // 3. Fetch today's sheet data
+    const res=await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(todayName)}?key=${API_KEY}`,
+      {referrerPolicy:"unsafe-url"}
+    );
+    const json=await res.json();
+    if(json.error) throw new Error(json.error.message);
+
+    const rows=json.values||[];
+    const drivers=parseSheet(rows);
+
     if(drivers.length===0){
       document.getElementById("msg-box").innerHTML=
-        `<div class="info-msg">No se encontraron datos en el sheet — mostrando datos de sesión.</div>`;
+        `<div class="info-msg">Sin datos en la pestaña "${todayName}" — mostrando datos de sesión.</div>`;
       render(SAMPLE);
     } else {
       render(drivers);
@@ -238,6 +223,7 @@ async function loadData(){
       `<div class="info-msg">${e.message} — mostrando datos de sesión.</div>`;
     render(SAMPLE);
   }
+
   const now=new Date();
   const months=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   document.getElementById("dash-title").textContent=

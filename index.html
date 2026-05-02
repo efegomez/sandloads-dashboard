@@ -56,7 +56,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 <div class="dash">
   <div class="topbar">
     <div>
-      <div class="dash-title" id="dash-title">Sandloads — 1 mayo 2026</div>
+      <div class="dash-title" id="dash-title">Sandloads</div>
       <div class="dash-sub" id="upd">Cargando...</div>
     </div>
     <button class="refbtn" onclick="loadData()">Refrescar</button>
@@ -100,78 +100,60 @@ function nameClass(d){
   return "t-dname";
 }
 function fmtH(h){return h===0?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm";}
-const MIN_H=0,MAX_H=20;
+const MIN_H=0, MAX_H=20;
 function pct(h){return((h-MIN_H)/(MAX_H-MIN_H)*100).toFixed(2);}
 
-// Fallback: datos actuales de la sesión
+// Fallback — datos actuales del sheet 05/02
 const SAMPLE=[
-  {name:"Miguel",  truck:"959", startH:0, qty:5,photos:5,status:"ACTIVO",    type:"PB"},
-  {name:"Jesus",   truck:"0385",startH:0, qty:5,photos:2,status:"ACTIVO",    type:"PB"},
+  {name:"Jesus",   truck:"0385",startH:0, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
+  {name:"Miguel",  truck:"959", startH:0, qty:5,photos:5,status:"DONE",      type:"PB"},
   {name:"Pedro",   truck:"2026",startH:0, qty:5,photos:0,status:"REPAIRING", type:"PB"},
   {name:"Yanquiel",truck:"122", startH:2, qty:5,photos:5,status:"ACTIVO",    type:"PB"},
   {name:"Felix",   truck:"24",  startH:2, qty:5,photos:0,status:"ROTO",      type:"PB"},
-  {name:"Juan",    truck:"27",  startH:3, qty:5,photos:3,status:"ACTIVO",    type:"CRANE"},
   {name:"Leandro", truck:"206", startH:4, qty:5,photos:4,status:"ACTIVO",    type:"PB"},
   {name:"Yasiel",  truck:"960", startH:4, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
-  {name:"Santiago",truck:"961", startH:5, qty:5,photos:2,status:"ACTIVO",    type:"PB"},
-  {name:"Yordis",  truck:"2947",startH:13,qty:5,photos:1,status:"ACTIVO",    type:"CRANE"},
+  {name:"Santiago",truck:"961", startH:5, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
+  {name:"Yosvani", truck:"88",  startH:13,qty:5,photos:3,status:"ACTIVO",    type:"PB"},
+  {name:"Juan",    truck:"27",  startH:3, qty:5,photos:5,status:"ACTIVO",    type:"CRANE"},
+  {name:"Yordis",  truck:"2947",startH:0, qty:5,photos:2,status:"ACTIVO",    type:"CRANE"},
 ];
 
-function parseRows(rows){
-  const STATUS_NORM={
-    "activo":"ACTIVO","active":"ACTIVO","done":"DONE",
-    "roto":"ROTO","broken":"ROTO","repairing":"REPAIRING",
-    "no contesta":"no contesta","no answer":"no contesta","n/c":"no contesta",
-    "pendiente":"pendiente","pending":"pendiente",
-  };
+const STATUS_NORM={
+  "activo":"ACTIVO","active":"ACTIVO","done":"DONE",
+  "roto":"ROTO","broken":"ROTO","repairing":"REPAIRING",
+  "no contesta":"no contesta","no answer":"no contesta","n/c":"no contesta",
+  "pendiente":"pendiente","pending":"pendiente",
+};
 
-  // Find the LAST block that has "Nash" rows - that's today's data
-  // Collect all candidate rows with Nash
+function parseRows(rows){
+  // Collect ALL rows that have a Nash route
   const nashRows=[];
   for(let i=0;i<rows.length;i++){
     const cells=rows[i];
-    const rutaIdx=cells.findIndex(v=>/nash/i.test(v||""));
+    const rutaIdx=cells.findIndex(v=>/\bnash\b/i.test(v||""));
     if(rutaIdx<0) continue;
-    // name: last non-empty, non-numeric, non-company cell before ruta
-    const namePart=cells.slice(0,rutaIdx)
-      .filter(v=>{
-        if(!v||!v.trim()) return false;
-        if(/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon|Waiting|SACADO|5\s*am|medio/i.test(v)) return false;
-        if(/^\d+$/.test(v.trim())) return false; // skip pure numbers (truck #)
-        return true;
-      })
-      .pop()||"";
-    if(!namePart) continue;
-    nashRows.push({rowIdx:i, cells, rutaIdx, namePart});
-  }
-
-  if(nashRows.length===0) return [];
-
-  // Find the last contiguous block of nash rows
-  // Group rows that are close together (within 15 rows of each other)
-  let bestBlock=[];
-  let currentBlock=[nashRows[0]];
-  for(let i=1;i<nashRows.length;i++){
-    if(nashRows[i].rowIdx - nashRows[i-1].rowIdx <= 15){
-      currentBlock.push(nashRows[i]);
-    } else {
-      if(currentBlock.length>bestBlock.length) bestBlock=currentBlock;
-      currentBlock=[nashRows[i]];
-    }
-  }
-  if(currentBlock.length>bestBlock.length) bestBlock=currentBlock;
-
-  // Parse the best block
-  const drivers=[];
-  for(const {cells, rutaIdx, namePart} of bestBlock){
     const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":"PB";
-    const truckPart=cells.slice(0,rutaIdx).filter(v=>v&&/^\d+$/.test(v.trim())).pop()||"";
+    // Must look like a real route: "PB To Nash Xam" or "CRANE To Nash"
+    if(!/\b(pb|crane|vista)\b/i.test(ruta)) continue;
+    // Skip co-driver rows
+    if(/co-driver|waiting|sacado|mantenimiento/i.test(ruta)) continue;
+
+    // Name: last non-empty, non-numeric, non-company cell before ruta
+    const namePart=cells.slice(0,rutaIdx).filter(v=>{
+      if(!v||!v.trim()) return false;
+      if(/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon|Waiting|SACADO|Roto|REPAIRING|sale|medio|entra/i.test(v)) return false;
+      if(/^\d+$/.test(v.trim())) return false;
+      return true;
+    }).pop()||"";
+    if(!namePart) continue;
+
+    const truckPart=cells.slice(0,rutaIdx).filter(v=>v&&/^T?\d+$/.test(v.trim())).pop()||"";
     const qty=parseInt(cells[rutaIdx+1]||"")||5;
     const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
     const status=STATUS_NORM[stRaw]||(stRaw?"ACTIVO":"pendiente");
     const photos=cells.slice(rutaIdx+3).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
 
+    const type=/crane|vista/i.test(ruta)?"CRANE":"PB";
     const hm=ruta.match(/(\d{1,2})\s*(am|pm)/i);
     let startH=0;
     if(hm){
@@ -181,9 +163,33 @@ function parseRows(rows){
       if(ap==="am"&&h===12) h=0;
       startH=h;
     }
-    drivers.push({name:namePart.trim().split(/\s+/)[0],truck:truckPart,startH,qty,photos,status,type});
+    nashRows.push({rowIdx:i,name:namePart.trim().split(/\s+/)[0],truck:truckPart,startH,qty,photos,status,type});
   }
-  return drivers;
+
+  if(nashRows.length===0) return [];
+
+  // Find the FIRST large contiguous block — that's today (top of sheet)
+  // Group by proximity
+  const blocks=[];
+  let cur=[nashRows[0]];
+  for(let i=1;i<nashRows.length;i++){
+    if(nashRows[i].rowIdx-nashRows[i-1].rowIdx<=20){
+      cur.push(nashRows[i]);
+    } else {
+      blocks.push(cur);
+      cur=[nashRows[i]];
+    }
+  }
+  blocks.push(cur);
+
+  // Pick the largest block
+  blocks.sort((a,b)=>b.length-a.length);
+  const best=blocks[0];
+
+  // Deduplicate by name (keep last occurrence = most updated)
+  const seen=new Map();
+  for(const r of best) seen.set(r.name.toLowerCase(),r);
+  return [...seen.values()];
 }
 
 async function fetchAllRows(){
@@ -193,19 +199,16 @@ async function fetchAllRows(){
   );
   const meta=await metaRes.json();
   if(meta.error) throw new Error(meta.error.message);
-
   const monthNames=["Enero","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const curMonth=monthNames[new Date().getMonth()];
   const sheets=meta.sheets||[];
-
   const sorted=[...sheets].sort((a,b)=>{
     if(a.properties.title===curMonth) return -1;
     if(b.properties.title===curMonth) return 1;
     return 0;
   });
-
   let allRows=[];
-  for(const sh of sorted){
+  for(const sh of sorted.slice(0,2)){
     const name=sh.properties.title;
     const res=await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(name)}?key=${API_KEY}`,
@@ -225,7 +228,7 @@ async function loadData(){
     const drivers=parseRows(rows);
     if(drivers.length===0){
       document.getElementById("msg-box").innerHTML=
-        `<div class="info-msg">No se encontraron datos para hoy en el sheet — mostrando datos de sesión.</div>`;
+        `<div class="info-msg">No se encontraron datos en el sheet — mostrando datos de sesión.</div>`;
       render(SAMPLE);
     } else {
       render(drivers);
@@ -235,8 +238,12 @@ async function loadData(){
       `<div class="info-msg">${e.message} — mostrando datos de sesión.</div>`;
     render(SAMPLE);
   }
+  const now=new Date();
+  const months=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  document.getElementById("dash-title").textContent=
+    `Sandloads — ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
   document.getElementById("upd").textContent=
-    "Actualizado: "+new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"});
+    "Actualizado: "+now.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"});
 }
 
 function render(DRIVERS){
@@ -253,14 +260,14 @@ function render(DRIVERS){
     const pal=palette(d);
     const startP=parseFloat(pct(d.startH));
     const bSize=18;
-    const minSpan=25;
-    const naturalSpan=parseFloat(pct(d.startH+d.qty*1.5+0.5))-startP;
+    const minSpan=22;
+    const naturalSpan=parseFloat(pct(d.startH+d.qty*1.4+0.5))-startP;
     const span=Math.max(naturalSpan,minSpan);
-    const cappedStart=Math.min(startP, 98-span-8);
+    const safeStart=Math.min(startP,96-span-8);
     let bubbles="";
     for(let i=0;i<d.qty;i++){
       const done=i<d.photos;
-      const lp=cappedStart+span*(i+0.5)/d.qty;
+      const lp=safeStart+span*(i+0.5)/d.qty;
       bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
     }
     const badge=`<span class='t-badge ${pal.badgeCls}'>${d.type==="CRANE"?"CRANE→Nash":"PB→Nash"}</span>`;

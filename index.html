@@ -77,6 +77,7 @@ const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
 const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
 
+function isDone(d){return d.status==="DONE"||(d.photos>=d.qty&&d.qty>0);}
 function isBroken(d){return d.status==="ROTO"||d.status==="REPAIRING";}
 function isNoShow(d){return d.status==="no contesta";}
 function isIdle(d){return d.status==="pendiente";}
@@ -87,7 +88,7 @@ function palette(d){
   return d.type==="CRANE"?CRANE:PB;
 }
 function rowClass(d){
-  if(d.photos>=d.qty&&d.qty>0) return d.type==="CRANE"?"row-done-crane":"row-done";
+  if(isDone(d)) return d.type==="CRANE"?"row-done-crane":"row-done";
   if(isBroken(d)) return "row-broken";
   if(isNoShow(d)) return "row-no-show";
   if(isIdle(d))   return "row-idle";
@@ -272,7 +273,7 @@ function render(DRIVERS){
   const tot=DRIVERS.reduce((s,d)=>s+d.photos,0);
   const qty=DRIVERS.reduce((s,d)=>s+d.qty,0);
   const active=DRIVERS.filter(d=>d.photos>0).length;
-  const doneD=DRIVERS.filter(d=>d.photos>=d.qty&&d.qty>0).length;
+  const doneD=DRIVERS.filter(d=>isDone(d)).length;
   const totalD=DRIVERS.filter(d=>d.qty>0).length;
   const pctC=qty>0?Math.round(tot/qty*100):0;
   const pctD=totalD>0?Math.round(doneD/totalD*100):0;

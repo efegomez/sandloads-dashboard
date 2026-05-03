@@ -148,7 +148,8 @@ function parseRows(rows){
       if(ap==="am"&&h===12) h=0;
       startH=h;
     }
-    drivers.push({name:namePart.trim().split(/\s+/)[0],truck:"",startH,qty,photos,status,type});
+    const truck=(cells[rutaIdx-1]||"").trim();
+    drivers.push({name:namePart.trim().split(/\s+/)[0],truck,startH,qty,photos,status,type});
   }
   return drivers;
 }
@@ -211,8 +212,8 @@ function render(DRIVERS){
       const lp=cappedStart+span*(i+0.5)/d.qty;
       bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
     }
-    const label=d.truck?fmtH(d.startH)+" · #"+d.truck:fmtH(d.startH);
-    return`<div class='t-row ${rowClass(d)}'><div class='t-accent' style='background:${pal.accent}'></div><div class='t-name'><div class='${nameClass(d)}'>${d.name}</div><div class='t-hour' style='color:${pal.accent}'>${label}</div></div><div class='t-count' style='color:${pal.accent}'>${d.photos}<span style='color:#666;font-weight:400;margin:0 1px'>/</span>${d.qty}</div><div class='t-bar'>${bubbles}</div></div>`;
+    const truckLbl=d.truck?`<span style='font-size:10px;font-weight:400;color:#666;margin-left:4px'>#${d.truck}</span>`:"";
+    return`<div class='t-row ${rowClass(d)}'><div class='t-accent' style='background:${pal.accent}'></div><div class='t-name'><div class='${nameClass(d)}'>${d.name}${truckLbl}</div><div class='t-hour' style='color:${pal.accent}'>${fmtH(d.startH)}</div></div><div class='t-count' style='color:${pal.accent}'>${d.photos}<span style='color:#666;font-weight:400;margin:0 1px'>/</span>${d.qty}</div><div class='t-bar'>${bubbles}</div></div>`;
   }
   html+=`<div class='section-lbl'><div class='slbl-dot' style='background:#00E676'></div><span style='color:#00E676'>PB to Nash</span></div>`;
   pb.forEach(d=>{html+=row(d);});

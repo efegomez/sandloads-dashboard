@@ -35,6 +35,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .t-dname.idle{color:#6B9FCC}
 .t-dname.broken{color:#FF4081}
 .t-hour{font-size:10px;font-weight:500;margin-top:1px}
+.t-count{width:32px;flex-shrink:0;text-align:center;font-size:12px;font-weight:600;line-height:1.2}
 .t-bar{flex:1;position:relative;height:42px;min-width:0}
 .t-bubble{position:absolute;top:50%;transform:translateY(-50%);border-radius:50%;cursor:default;border:1.5px solid;transition:transform .12s}
 .t-bubble:hover{transform:translateY(-50%) scale(1.2);z-index:5}
@@ -67,7 +68,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 </div>
 
 <script>
-const SHEET_ID  = "1FlPvLr6eHExUb14CqPtPTUQmlHgUokIjLHFsidWzk-Y";
+const SHEET_ID  = "1Dr0yEoQMm3d-iZjOy44HuHj_WzL0yU4BUxTiMeaGrgE";
 const API_KEY   = "AIzaSyAnfpxHtfQG89DfRuBFJkzBPR0IorGgwvc";
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -103,18 +104,20 @@ function fmtH(h){return h===0?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm";}
 const MIN_H=0,MAX_H=20;
 function pct(h){return((h-MIN_H)/(MAX_H-MIN_H)*100).toFixed(2);}
 
-// Fallback: datos actuales de la sesión
+// Fallback: datos de muestra
 const SAMPLE=[
-  {name:"Miguel",  truck:"959", startH:0, qty:5,photos:5,status:"ACTIVO",    type:"PB"},
-  {name:"Jesus",   truck:"0385",startH:0, qty:5,photos:2,status:"ACTIVO",    type:"PB"},
-  {name:"Pedro",   truck:"2026",startH:0, qty:5,photos:0,status:"REPAIRING", type:"PB"},
-  {name:"Yanquiel",truck:"122", startH:2, qty:5,photos:5,status:"ACTIVO",    type:"PB"},
-  {name:"Felix",   truck:"24",  startH:2, qty:5,photos:0,status:"ROTO",      type:"PB"},
-  {name:"Juan",    truck:"27",  startH:3, qty:5,photos:3,status:"ACTIVO",    type:"CRANE"},
-  {name:"Leandro", truck:"206", startH:4, qty:5,photos:4,status:"ACTIVO",    type:"PB"},
-  {name:"Yasiel",  truck:"960", startH:4, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
-  {name:"Santiago",truck:"961", startH:5, qty:5,photos:2,status:"ACTIVO",    type:"PB"},
-  {name:"Yordis",  truck:"2947",startH:13,qty:5,photos:1,status:"ACTIVO",    type:"CRANE"},
+  {name:"Ernesto",  truck:"2632",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Pedro",    truck:"2026",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Yanquiel", truck:"122", startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Miguel",   truck:"959", startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Yosvani",  truck:"88",  startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Jesus",    truck:"0385",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Doanys",   truck:"804", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Yasiel",   truck:"960", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Felix",    truck:"24",  startH:11,qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Santiago", truck:"961", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Leandro",  truck:"206", startH:4, qty:5,photos:0,status:"ACTIVO",type:"CRANE"},
+  {name:"Yordis",   truck:"2947",startH:13,qty:5,photos:0,status:"ACTIVO",type:"CRANE"},
 ];
 
 function parseRows(rows){
@@ -247,9 +250,8 @@ function render(DRIVERS){
       const lp=cappedStart+span*(i+0.5)/d.qty;
       bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
     }
-    const badge=`<span class='t-badge ${pal.badgeCls}'>${d.type==="CRANE"?"CRANE→Nash":"PB→Nash"}</span>`;
     const label=d.truck?fmtH(d.startH)+" · #"+d.truck:fmtH(d.startH);
-    return`<div class='t-row ${rowClass(d)}'><div class='t-accent' style='background:${pal.accent}'></div><div class='t-name'><div class='${nameClass(d)}'>${d.name}</div><div class='t-hour' style='color:${pal.accent}'>${label}</div></div><div class='t-bar'>${bubbles}${badge}</div></div>`;
+    return`<div class='t-row ${rowClass(d)}'><div class='t-accent' style='background:${pal.accent}'></div><div class='t-name'><div class='${nameClass(d)}'>${d.name}</div><div class='t-hour' style='color:${pal.accent}'>${label}</div></div><div class='t-count' style='color:${pal.accent}'>${d.photos}<span style='color:#666;font-weight:400;margin:0 1px'>/</span>${d.qty}</div><div class='t-bar'>${bubbles}</div></div>`;
   }
 
   html+=`<div class='section-lbl'><div class='slbl-dot' style='background:#00E676'></div><span style='color:#00E676'>PB to Nash</span></div>`;

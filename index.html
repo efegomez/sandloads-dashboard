@@ -132,7 +132,7 @@ function parseRows(rows){
     const ruta=cells[rutaIdx]||"";
     const type=/crane/i.test(ruta)?"CRANE":"PB";
     const namePart=cells.slice(0,rutaIdx)
-      .filter(v=>v&&v.trim()&&!/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon|Suarez|Greenwood/i.test(v))
+      .filter(v=>v&&v.trim()&&!/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon|Suarez|Greenwood/i.test(v)&&!/^\d+$/.test(v.trim()))
       .pop()||"";
     if(!namePart) continue;
     const qty=parseInt(cells[rutaIdx+1]||"")||5;

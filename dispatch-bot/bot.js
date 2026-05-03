@@ -167,7 +167,11 @@ const client = new Client({
     clientId: 'dispatch-bot',
     dataPath: 'C:\\Users\\efego\\AppData\\Local\\dispatch-bot',
   }),
-  puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+  puppeteer: {
+    headless: true,
+    protocolTimeout: 120000,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+  },
 });
 
 client.on('qr', (qr) => {
@@ -238,7 +242,8 @@ client.on('message', async (msg) => {
     // 6. Notificar al owner
     if (numFoto === null) {
       console.log(`Duplicado ignorado: ${driverName} ya tiene ${numeroCarga}`);
-      await client.sendMessage(OWNER_PHONE, `*Duplicado ignorado*\n*${driverName}* — carga *${numeroCarga}* ya estaba registrada.`);
+      const senderJid = remitente.endsWith('@lid') ? `${celular}@c.us` : remitente;
+      await client.sendMessage(senderJid, `Carga *${numeroCarga}* ya fue registrada. Envía la captura correcta.`);
       return;
     }
 

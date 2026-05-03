@@ -56,7 +56,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 <div class="dash">
   <div class="topbar">
     <div>
-      <div class="dash-title" id="dash-title">Sandloads — 1 mayo 2026</div>
+      <div class="dash-title" id="dash-title">Sandloads</div>
       <div class="dash-sub" id="upd">Cargando...</div>
     </div>
     <button class="refbtn" onclick="loadData()">Refrescar</button>
@@ -68,7 +68,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 
 <script>
 const SHEET_ID  = "1FlPvLr6eHExUb14CqPtPTUQmlHgUokIjLHFsidWzk-Y";
-const API_KEY   = "AIzaSyDxNpc2JTcpmCMndsTo7t_llqbAPW8K-Eo";
+const API_KEY   = "AIzaSyAnfpxHtfQG89DfRuBFJkzBPR0IorGgwvc";
 const REFRESH_MS = 5 * 60 * 1000;
 
 const PB     = {accent:"#00E676", dim:"#00a152", badgeCls:"pb-badge"};
@@ -77,6 +77,7 @@ const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
 const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
 
+function isDone(d){return d.status==="DONE"||(d.photos>=d.qty&&d.qty>0);}
 function isBroken(d){return d.status==="ROTO"||d.status==="REPAIRING";}
 function isNoShow(d){return d.status==="no contesta";}
 function isIdle(d){return d.status==="pendiente";}
@@ -87,7 +88,7 @@ function palette(d){
   return d.type==="CRANE"?CRANE:PB;
 }
 function rowClass(d){
-  if(d.photos>=d.qty&&d.qty>0) return d.type==="CRANE"?"row-done-crane":"row-done";
+  if(isDone(d)) return d.type==="CRANE"?"row-done-crane":"row-done";
   if(isBroken(d)) return "row-broken";
   if(isNoShow(d)) return "row-no-show";
   if(isIdle(d))   return "row-idle";
@@ -100,61 +101,69 @@ function nameClass(d){
   return "t-dname";
 }
 function fmtH(h){return h===0?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm";}
-const MIN_H=0,MAX_H=16;
+const MIN_H=0, MAX_H=20;
 function pct(h){return((h-MIN_H)/(MAX_H-MIN_H)*100).toFixed(2);}
 
-// Fallback: datos actuales de la sesión
+// Fallback data
 const SAMPLE=[
-  {name:"Miguel",  truck:"959", startH:0, qty:5,photos:5,status:"ACTIVO",    type:"PB"},
-  {name:"Jesus",   truck:"0385",startH:0, qty:5,photos:2,status:"ACTIVO",    type:"PB"},
-  {name:"Pedro",   truck:"2026",startH:0, qty:5,photos:0,status:"REPAIRING", type:"PB"},
-  {name:"Yanquiel",truck:"122", startH:2, qty:5,photos:5,status:"ACTIVO",    type:"PB"},
+  {name:"Jesus",   truck:"0385",startH:0, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
+  {name:"Miguel",  truck:"959", startH:0, qty:5,photos:5,status:"DONE",      type:"PB"},
+  {name:"Yanquiel",truck:"122", startH:2, qty:5,photos:5,status:"DONE",      type:"PB"},
   {name:"Felix",   truck:"24",  startH:2, qty:5,photos:0,status:"ROTO",      type:"PB"},
-  {name:"Juan",    truck:"27",  startH:3, qty:5,photos:3,status:"ACTIVO",    type:"CRANE"},
-  {name:"Leandro", truck:"206", startH:4, qty:5,photos:4,status:"ACTIVO",    type:"PB"},
+  {name:"Leandro", truck:"206", startH:4, qty:5,photos:4,status:"DONE",      type:"PB"},
   {name:"Yasiel",  truck:"960", startH:4, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
-  {name:"Santiago",truck:"961", startH:5, qty:5,photos:2,status:"ACTIVO",    type:"PB"},
-  {name:"Yordis",  truck:"2947",startH:13,qty:5,photos:0,status:"ACTIVO",    type:"PB"},
+  {name:"Santiago",truck:"961", startH:5, qty:5,photos:3,status:"ACTIVO",    type:"PB"},
+  {name:"Yosvani", truck:"88",  startH:13,qty:5,photos:2,status:"ACTIVO",    type:"PB"},
+  {name:"Doanys",  truck:"804", startH:0, qty:5,photos:1,status:"ACTIVO",    type:"PB"},
+  {name:"Pedro",   truck:"2026",startH:0, qty:5,photos:0,status:"REPAIRING", type:"PB"},
+  {name:"Juan",    truck:"27",  startH:3, qty:5,photos:5,status:"ACTIVO",    type:"CRANE"},
+  {name:"Yordis",  truck:"2947",startH:0, qty:5,photos:2,status:"ACTIVO",    type:"CRANE"},
 ];
 
-function parseRows(rows){
-  const now = new Date();
-  const mm  = String(now.getMonth()+1).padStart(2,'0');
-  const dd  = String(now.getDate()).padStart(2,'0');
-  const todayKey = mm+"."+dd;
+const STATUS_NORM={
+  "activo":"ACTIVO","active":"ACTIVO","done":"DONE",
+  "roto":"ROTO","broken":"ROTO","repairing":"REPAIRING",
+  "no contesta":"no contesta","no answer":"no contesta","n/c":"no contesta",
+  "pendiente":"pendiente","pending":"pendiente",
+};
 
-  const STATUS_NORM={
-    "activo":"ACTIVO","active":"ACTIVO","done":"DONE",
-    "roto":"ROTO","broken":"ROTO","repairing":"REPAIRING",
-    "no contesta":"no contesta","no answer":"no contesta","n/c":"no contesta",
-    "pendiente":"pendiente","pending":"pendiente",
-  };
+function getTodaySheetName(){
+  const now=new Date();
+  const mm=String(now.getMonth()+1).padStart(2,'0');
+  const dd=String(now.getDate()).padStart(2,'0');
+  return mm+"."+dd; // e.g. "05.01"
+}
+
+function parseSheet(rows){
+  // Row 1 = header (Driver name, Truck#, RUTA, Qty, STATUS, PHOTO, 1..16)
+  // Data starts at row 2 (index 1)
+  // Col C (index 2) = Driver name
+  // Col D (index 3) = Truck #
+  // Col E (index 4) = RUTA
+  // Col F (index 5) = Qty
+  // Col G (index 6) = STATUS
+  // Col H (index 7) = PHOTO label
+  // Col I onward (index 8+) = photo ticket numbers
 
   const drivers=[];
-  let inBlock=false;
+  for(let i=1;i<rows.length;i++){
+    const cells=rows[i];
+    const ruta=(cells[4]||"").trim();
+    if(!ruta||!/nash/i.test(ruta)) continue;
+    if(/co-driver|waiting|sacado/i.test(ruta)) continue;
 
-  for(const cells of rows){
-    const c0=(cells[0]||"").trim();
-    if(c0===todayKey){inBlock=true;continue;}
-    if(inBlock&&/^\d{2}\.\d{2}$/.test(c0)&&c0!==todayKey) break;
-    if(!inBlock) continue;
+    const name=(cells[2]||"").trim();
+    if(!name) continue;
 
-    const rutaIdx=cells.findIndex(v=>/nash/i.test(v||""));
-    if(rutaIdx<0) continue;
-
-    const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":"PB";
-
-    const namePart=cells.slice(0,rutaIdx)
-      .filter(v=>v&&v.trim()&&!/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon/i.test(v))
-      .pop()||"";
-    if(!namePart) continue;
-
-    const qty=parseInt(cells[rutaIdx+1]||"")||5;
-    const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
+    const truck=(cells[3]||"").trim();
+    const qty=parseInt(cells[5]||"")||5;
+    const stRaw=(cells[6]||"").toLowerCase().trim();
     const status=STATUS_NORM[stRaw]||(stRaw?"ACTIVO":"pendiente");
-    const photos=cells.slice(rutaIdx+3).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
 
+    // Photos start at col I (index 8)
+    const photos=cells.slice(8).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
+
+    const type=/crane|vista/i.test(ruta)?"CRANE":"PB";
     const hm=ruta.match(/(\d{1,2})\s*(am|pm)/i);
     let startH=0;
     if(hm){
@@ -165,51 +174,47 @@ function parseRows(rows){
       startH=h;
     }
 
-    drivers.push({name:namePart.trim().split(/\s+/)[0],truck:"",startH,qty,photos,status,type});
+    drivers.push({
+      name: name.split(/\s+/)[0],
+      truck, startH, qty, photos, status, type
+    });
   }
   return drivers;
-}
-
-async function fetchAllRows(){
-  const metaRes=await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?key=${API_KEY}`,
-    {referrerPolicy:"unsafe-url"}
-  );
-  const meta=await metaRes.json();
-  if(meta.error) throw new Error(meta.error.message);
-
-  const monthNames=["Enero","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  const curMonth=monthNames[new Date().getMonth()];
-  const sheets=meta.sheets||[];
-
-  const sorted=[...sheets].sort((a,b)=>{
-    if(a.properties.title===curMonth) return -1;
-    if(b.properties.title===curMonth) return 1;
-    return 0;
-  });
-
-  let allRows=[];
-  for(const sh of sorted){
-    const name=sh.properties.title;
-    const res=await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(name)}?key=${API_KEY}`,
-      {referrerPolicy:"unsafe-url"}
-    );
-    const json=await res.json();
-    if(json.values) allRows=allRows.concat(json.values);
-  }
-  return allRows;
 }
 
 async function loadData(){
   document.getElementById("upd").textContent="Actualizando...";
   document.getElementById("msg-box").innerHTML="";
   try{
-    const rows=await fetchAllRows();
-    const drivers=parseRows(rows);
+    // 1. Get sheet metadata to find today's tab
+    const metaRes=await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?key=${API_KEY}`,
+      {referrerPolicy:"unsafe-url"}
+    );
+    const meta=await metaRes.json();
+    if(meta.error) throw new Error(meta.error.message);
+
+    // 2. Find today's tab by name (e.g. "05.01")
+    const todayName=getTodaySheetName();
+    const sheets=meta.sheets||[];
+    const todaySheet=sheets.find(s=>s.properties.title===todayName);
+
+    if(!todaySheet) throw new Error(`No se encontró la pestaña "${todayName}"`);
+
+    // 3. Fetch today's sheet data
+    const res=await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(todayName)}?key=${API_KEY}`,
+      {referrerPolicy:"unsafe-url"}
+    );
+    const json=await res.json();
+    if(json.error) throw new Error(json.error.message);
+
+    const rows=json.values||[];
+    const drivers=parseSheet(rows);
+
     if(drivers.length===0){
       document.getElementById("msg-box").innerHTML=
-        `<div class="info-msg">No se encontraron datos para hoy en el sheet — mostrando datos de sesión.</div>`;
+        `<div class="info-msg">Sin datos en la pestaña "${todayName}" — mostrando datos de sesión.</div>`;
       render(SAMPLE);
     } else {
       render(drivers);
@@ -219,8 +224,13 @@ async function loadData(){
       `<div class="info-msg">${e.message} — mostrando datos de sesión.</div>`;
     render(SAMPLE);
   }
+
+  const now=new Date();
+  const months=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  document.getElementById("dash-title").textContent=
+    `Sandloads — ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
   document.getElementById("upd").textContent=
-    "Actualizado: "+new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"});
+    "Actualizado: "+now.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"});
 }
 
 function render(DRIVERS){
@@ -236,13 +246,16 @@ function render(DRIVERS){
   function row(d){
     const pal=palette(d);
     const startP=parseFloat(pct(d.startH));
-    const endP=parseFloat(pct(Math.min(d.startH+d.qty*1.5+0.5,MAX_H-0.3)));
-    const span=endP-startP;
+    const bSize=18;
+    const minSpan=22;
+    const naturalSpan=parseFloat(pct(d.startH+d.qty*1.4+0.5))-startP;
+    const span=Math.max(naturalSpan,minSpan);
+    const safeStart=Math.min(startP,96-span-8);
     let bubbles="";
     for(let i=0;i<d.qty;i++){
       const done=i<d.photos;
-      const lp=startP+span*(i+0.5)/d.qty;
-      bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:20px;height:20px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
+      const lp=safeStart+span*(i+0.5)/d.qty;
+      bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
     }
     const badge=`<span class='t-badge ${pal.badgeCls}'>${d.type==="CRANE"?"CRANE→Nash":"PB→Nash"}</span>`;
     const label=d.truck?fmtH(d.startH)+" · #"+d.truck:fmtH(d.startH);
@@ -260,7 +273,7 @@ function render(DRIVERS){
   const tot=DRIVERS.reduce((s,d)=>s+d.photos,0);
   const qty=DRIVERS.reduce((s,d)=>s+d.qty,0);
   const active=DRIVERS.filter(d=>d.photos>0).length;
-  const doneD=DRIVERS.filter(d=>d.photos>=d.qty&&d.qty>0).length;
+  const doneD=DRIVERS.filter(d=>isDone(d)).length;
   const totalD=DRIVERS.filter(d=>d.qty>0).length;
   const pctC=qty>0?Math.round(tot/qty*100):0;
   const pctD=totalD>0?Math.round(doneD/totalD*100):0;

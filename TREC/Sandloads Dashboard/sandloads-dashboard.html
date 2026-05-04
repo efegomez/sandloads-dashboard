@@ -111,9 +111,7 @@ function getTodayKey(){
 }
 
 function parseSheet(rows){
-  const todayKey = getTodayKey();
   const drivers  = [];
-  let inToday    = false;
 
   const STATUS_MAP = {
     "activo":"ACTIVO","active":"ACTIVO",
@@ -125,13 +123,6 @@ function parseSheet(rows){
 
   for(const row of rows){
     const cells = row.values||[];
-    const first = (cells[0]?.formattedValue||"").trim();
-
-    if(first===todayKey){ inToday=true; continue; }
-    const nextMonth = /^\d{2}\.\d{2}$/.test(first) && first!==todayKey;
-    if(inToday && nextMonth){ break; }
-    if(!inToday) continue;
-
     const vals = cells.map(c=>(c.formattedValue||"").trim());
 
     // detect driver rows: col that looks like "PB To Nash Xam" or "CRANE To Nash"
@@ -179,25 +170,10 @@ async function loadData(){
   document.getElementById("error-box").innerHTML = "";
 
   try{
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet`
-      +`?ranges=May&valueRenderOption=FORMATTED_VALUE&key=${API_KEY}`;
-
-    // Try to get sheet names first
-    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?key=${API_KEY}`;
-    const metaRes = await fetch(metaUrl, {referrerPolicy:"no-referrer"});
-    const meta    = await metaRes.json();
-
-    if(meta.error){ throw new Error(meta.error.message); }
-
-    const sheets  = meta.sheets||[];
-    const today   = new Date();
-    const monthNames = ["Enero","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-    const currentMonth = monthNames[today.getMonth()];
-    const sheet   = sheets.find(s=>s.properties.title===currentMonth)||sheets[0];
-    const sheetName = sheet.properties.title;
+    const sheetName = getTodayKey();
 
     const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`
-      +`?includeGridData=true&ranges=${encodeURIComponent(sheetName)}&key=${API_KEY}`;
+      +`?includeGridData=true&ranges=${encodeURIComponent(sheetName)}&key=${API_KEY}&_=${Date.now()}`;
     const dataRes = await fetch(dataUrl, {referrerPolicy:"no-referrer"});
     const data    = await dataRes.json();
 

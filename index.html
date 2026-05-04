@@ -175,13 +175,9 @@ function parseRows(rows){
   return drivers;
 }
 
-async function fetchAllRows(){
-  const now=new Date();
-  const tabName=String(now.getMonth()+1).padStart(2,'0')+"."+String(now.getDate()).padStart(2,'0');
-  const range=encodeURIComponent("'"+tabName+"'");
-
+async function fetchAllRows(tabName){
   const res=await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}&_=${Date.now()}`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(tabName)}?key=${API_KEY}&_=${Date.now()}`,
     {referrerPolicy:"unsafe-url"}
   );
   const json=await res.json();
@@ -194,10 +190,10 @@ async function loadData(){
   const tabName=String(now.getMonth()+1).padStart(2,'0')+"."+String(now.getDate()).padStart(2,'0');
   const meses=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   document.getElementById("dash-title").textContent="Sandloads — "+now.getDate()+" "+meses[now.getMonth()]+" "+now.getFullYear();
-  document.getElementById("upd").textContent="Actualizando...";
+  document.getElementById("upd").textContent="Tab: "+tabName+" — Actualizando...";
   document.getElementById("msg-box").innerHTML="";
   try{
-    const rows=await fetchAllRows();
+    const rows=await fetchAllRows(tabName);
     const drivers=parseRows(rows);
     if(drivers.length===0){
       document.getElementById("msg-box").innerHTML=

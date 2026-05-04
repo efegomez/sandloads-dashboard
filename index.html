@@ -60,7 +60,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 <div class="dash">
   <div class="topbar">
     <div>
-      <div class="dash-title" id="dash-title">Sandloads — 1 mayo 2026</div>
+      <div class="dash-title" id="dash-title">Sandloads</div>
       <div class="dash-sub" id="upd">Cargando...</div>
     </div>
     <button class="refbtn" onclick="loadData()">Refrescar</button>
@@ -134,11 +134,6 @@ const SAMPLE=[
 ];
 
 function parseRows(rows){
-  const now = new Date();
-  const mm  = String(now.getMonth()+1).padStart(2,'0');
-  const dd  = String(now.getDate()).padStart(2,'0');
-  const todayKey = mm+"."+dd;
-
   const STATUS_NORM={
     "activo":"ACTIVO","active":"ACTIVO","done":"DONE",
     "roto":"ROTO","broken":"ROTO","repairing":"REPAIRING",
@@ -147,24 +142,18 @@ function parseRows(rows){
   };
 
   const drivers=[];
-  let inBlock=false;
 
   for(const cells of rows){
-    const c0=(cells[0]||"").trim();
-    if(c0===todayKey){inBlock=true;continue;}
-    if(inBlock&&/^\d{2}\.\d{2}$/.test(c0)&&c0!==todayKey) break;
-    if(!inBlock) continue;
-
     const rutaIdx=cells.findIndex(v=>/nash|vista|prefill/i.test(v||""));
-    if(rutaIdx<0) continue;
+    if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";
     const type=/crane/i.test(ruta)?"CRANE":/vista|prefill/i.test(ruta)?"VISTA":"PB";
 
-    const namePart=cells.slice(0,rutaIdx)
-      .filter(v=>v&&v.trim()&&!/LLC|Trucking|freight|express|HVC|YBB|JAMG|Montoya|Four|Paragon/i.test(v))
-      .pop()||"";
-    if(!namePart) continue;
+    // Col layout per bot.js: name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx)
+    const nameFull=(cells[rutaIdx-2]||"").trim();
+    const truck=(cells[rutaIdx-1]||"").trim();
+    if(!nameFull) continue;
 
     const qty=parseInt(cells[rutaIdx+1]||"")||5;
     const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
@@ -181,43 +170,30 @@ function parseRows(rows){
       startH=h;
     }
 
-    drivers.push({name:namePart.trim().split(/\s+/)[0],truck:"",startH,qty,photos,status,type});
+    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,qty,photos,status,type});
   }
   return drivers;
 }
 
 async function fetchAllRows(){
-  const metaRes=await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?key=${API_KEY}`,
+  const now=new Date();
+  const tabName=String(now.getMonth()+1).padStart(2,'0')+"."+String(now.getDate()).padStart(2,'0');
+  const range=encodeURIComponent("'"+tabName+"'");
+
+  const res=await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}&_=${Date.now()}`,
     {referrerPolicy:"unsafe-url"}
   );
-  const meta=await metaRes.json();
-  if(meta.error) throw new Error(meta.error.message);
-
-  const monthNames=["Enero","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  const curMonth=monthNames[new Date().getMonth()];
-  const sheets=meta.sheets||[];
-
-  const sorted=[...sheets].sort((a,b)=>{
-    if(a.properties.title===curMonth) return -1;
-    if(b.properties.title===curMonth) return 1;
-    return 0;
-  });
-
-  let allRows=[];
-  for(const sh of sorted){
-    const name=sh.properties.title;
-    const res=await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(name)}?key=${API_KEY}`,
-      {referrerPolicy:"unsafe-url"}
-    );
-    const json=await res.json();
-    if(json.values) allRows=allRows.concat(json.values);
-  }
-  return allRows;
+  const json=await res.json();
+  if(json.error) throw new Error(json.error.message);
+  return json.values||[];
 }
 
 async function loadData(){
+  const now=new Date();
+  const tabName=String(now.getMonth()+1).padStart(2,'0')+"."+String(now.getDate()).padStart(2,'0');
+  const meses=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  document.getElementById("dash-title").textContent="Sandloads — "+now.getDate()+" "+meses[now.getMonth()]+" "+now.getFullYear();
   document.getElementById("upd").textContent="Actualizando...";
   document.getElementById("msg-box").innerHTML="";
   try{
@@ -225,14 +201,16 @@ async function loadData(){
     const drivers=parseRows(rows);
     if(drivers.length===0){
       document.getElementById("msg-box").innerHTML=
-        `<div class="info-msg">No se encontraron datos para hoy en el sheet — mostrando datos de sesión.</div>`;
+        `<div class="info-msg">Pestaña "${tabName}" sin choferes.</div>`;
       render(SAMPLE);
     } else {
       render(drivers);
     }
   }catch(e){
-    document.getElementById("msg-box").innerHTML=
-      `<div class="info-msg">${e.message} — mostrando datos de sesión.</div>`;
+    const msg=e.message.includes("permission")||e.message.includes("parse")
+      ?`Pestaña "${tabName}" no encontrada en el sheet.`
+      :e.message;
+    document.getElementById("msg-box").innerHTML=`<div class="info-msg">${msg}</div>`;
     render(SAMPLE);
   }
   document.getElementById("upd").textContent=

@@ -125,16 +125,15 @@ function parseSheet(rows){
     const cells = row.values||[];
     const vals = cells.map(c=>(c.formattedValue||"").trim());
 
-    // detect driver rows: col that looks like "PB To Nash Xam" or "CRANE To Nash"
-    const rutaIdx = vals.findIndex(v=>/\b(nash|crane|pb)\b/i.test(v));
-    if(rutaIdx<0) continue;
+    // detect driver rows by route column
+    const rutaIdx = vals.findIndex(v=>/nash|vista|prefill/i.test(v));
+    if(rutaIdx<2) continue;
 
     const ruta = vals[rutaIdx];
-    const type = /crane/i.test(ruta)?"CRANE":"PB";
+    const type = /crane/i.test(ruta)?"CRANE":/vista|prefill/i.test(ruta)?"VISTA":"PB";
 
-    // find driver name (non-empty before ruta)
-    const nameCandidates = vals.slice(0,rutaIdx).filter(v=>v&&!/LLC|Trucking|freight|express|ponce|barrio|martinez/i.test(v));
-    const name = nameCandidates[nameCandidates.length-1]||"";
+    // Col layout: [... name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx) ...]
+    const name = vals[rutaIdx-2]||"";
     if(!name) continue;
 
     const qtyRaw = vals[rutaIdx+1]||"";
@@ -159,7 +158,8 @@ function parseSheet(rows){
     }
 
     const firstName = name.split(/\s+/)[0];
-    drivers.push({name:firstName, truck:"", startH, qty, photos, status, type});
+    const truck = vals[rutaIdx-1]||"";
+    drivers.push({name:firstName, truck, startH, qty, photos, status, type});
   }
 
   return drivers;

@@ -60,7 +60,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 <div class="dash">
   <div class="topbar">
     <div>
-      <div class="dash-title" id="dash-title">Sandloads — 1 mayo 2026</div>
+      <div class="dash-title" id="dash-title">Sandloads</div>
       <div class="dash-sub" id="upd">Cargando...</div>
     </div>
     <button class="refbtn" onclick="loadData()">Refrescar</button>
@@ -189,6 +189,10 @@ async function fetchAllRows(){
 }
 
 async function loadData(){
+  const now=new Date();
+  const tabName=String(now.getMonth()+1).padStart(2,'0')+"."+String(now.getDate()).padStart(2,'0');
+  const meses=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  document.getElementById("dash-title").textContent="Sandloads — "+now.getDate()+" "+meses[now.getMonth()]+" "+now.getFullYear();
   document.getElementById("upd").textContent="Actualizando...";
   document.getElementById("msg-box").innerHTML="";
   try{
@@ -196,14 +200,16 @@ async function loadData(){
     const drivers=parseRows(rows);
     if(drivers.length===0){
       document.getElementById("msg-box").innerHTML=
-        `<div class="info-msg">No se encontraron datos para hoy en el sheet — mostrando datos de sesión.</div>`;
+        `<div class="info-msg">Pestaña "${tabName}" sin choferes — mostrando datos de sesión.</div>`;
       render(SAMPLE);
     } else {
       render(drivers);
     }
   }catch(e){
-    document.getElementById("msg-box").innerHTML=
-      `<div class="info-msg">${e.message} — mostrando datos de sesión.</div>`;
+    const msg=e.message.includes("permission")||e.message.includes("parse")
+      ?`Pestaña "${tabName}" no encontrada en el sheet — crea la pestaña para ver datos de hoy.`
+      :e.message;
+    document.getElementById("msg-box").innerHTML=`<div class="info-msg">${msg}</div>`;
     render(SAMPLE);
   }
   document.getElementById("upd").textContent=

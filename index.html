@@ -144,11 +144,14 @@ function parseRows(rows){
   const drivers=[];
 
   for(const cells of rows){
-    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill/i.test(v||""));
+    // Stop before co-driver section
+    if(cells.some(v=>/co.?driver/i.test(v||""))) break;
+
+    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|borland/i.test(v||""));
     if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":/vista|prefill/i.test(ruta)?"VISTA":"PB";
+    const type=/crane/i.test(ruta)?"CRANE":/vista|prefill|borland/i.test(ruta)?"VISTA":"PB";
 
     // Col layout per bot.js: name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx)
     const nameFull=(cells[rutaIdx-2]||"").trim();

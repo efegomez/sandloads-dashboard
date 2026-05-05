@@ -133,7 +133,14 @@ const SAMPLE=[
   {name:"Juan",     truck:"T27", startH:15,qty:5,photos:0,status:"ACTIVO",type:"VISTA"},
 ];
 
-function parseRows(rows){
+function isCanceled(cell){
+  const bg=cell?.effectiveFormat?.backgroundColor;
+  if(!bg) return false;
+  // White/default = no fill; any other color = canceled
+  return !(bg.red>=0.99 && bg.green>=0.99 && bg.blue>=0.99);
+}
+
+function parseRows(rowData){
   const STATUS_NORM={
     "activo":"ACTIVO","active":"ACTIVO","done":"DONE",
     "roto":"ROTO","broken":"ROTO","repairing":"REPAIRING",
@@ -143,22 +150,29 @@ function parseRows(rows){
 
   const drivers=[];
 
-  for(const cells of rows){
-    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|borland/i.test(v||""));
+  for(const row of rowData){
+    const cells=row.values||[];
+    const vals=cells.map(c=>(c.formattedValue||"").trim());
+
+    const rutaIdx=vals.findIndex(v=>/nash|vista|prefill|borland/i.test(v));
     if(rutaIdx<2) continue;
 
-    const ruta=cells[rutaIdx]||"";
+    const ruta=vals[rutaIdx];
     const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":"PB";
 
-    // Col layout per bot.js: name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx)
-    const nameFull=(cells[rutaIdx-2]||"").trim();
-    const truck=(cells[rutaIdx-1]||"").trim();
+    const nameFull=vals[rutaIdx-2];
+    const truck=vals[rutaIdx-1];
     if(!nameFull) continue;
 
-    const qty=parseInt(cells[rutaIdx+1]||"")||5;
-    const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
+    const qty=parseInt(vals[rutaIdx+1])||5;
+    const stRaw=(vals[rutaIdx+2]||"").toLowerCase().trim();
     const status=STATUS_NORM[stRaw]||(stRaw?"ACTIVO":"pendiente");
-    const photos=cells.slice(rutaIdx+3).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
+
+    // Skip load cells with color fill (canceled loads)
+    const photos=cells.slice(rutaIdx+3).filter(c=>{
+      const v=(c.formattedValue||"").trim();
+      return /^\d{6,}$/.test(v) && !isCanceled(c);
+    }).length;
 
     const hm=ruta.match(/(\d{1,2})\s*(am|pm)/i);
     let startH=0;
@@ -177,12 +191,12 @@ function parseRows(rows){
 
 async function fetchAllRows(tabName){
   const res=await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(tabName)}?key=${API_KEY}&_=${Date.now()}`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?includeGridData=true&ranges=${encodeURIComponent("'"+tabName+"'")}&key=${API_KEY}&_=${Date.now()}`,
     {referrerPolicy:"unsafe-url"}
   );
   const json=await res.json();
   if(json.error) throw new Error(json.error.message);
-  return json.values||[];
+  return json.sheets?.[0]?.data?.[0]?.rowData||[];
 }
 
 async function loadData(){

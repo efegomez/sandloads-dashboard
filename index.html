@@ -144,14 +144,11 @@ function parseRows(rows){
   const drivers=[];
 
   for(const cells of rows){
-    // Stop before co-driver section
-    if(cells.some(v=>/co.?driver/i.test(v||""))) break;
-
     const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|borland/i.test(v||""));
     if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":/vista|prefill|borland/i.test(ruta)?"VISTA":"PB";
+    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":"PB";
 
     // Col layout per bot.js: name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx)
     const nameFull=(cells[rutaIdx-2]||"").trim();
@@ -220,6 +217,7 @@ function render(DRIVERS){
   const pb=DRIVERS.filter(d=>d.type==="PB");
   const crane=DRIVERS.filter(d=>d.type==="CRANE");
   const vista=DRIVERS.filter(d=>d.type==="VISTA");
+  const borland=DRIVERS.filter(d=>d.type==="BORLAND");
 
   let html="<div class='tick-wrap'><div class='tick-spc'></div><div class='tick-bar-t'>";
   for(let h=MIN_H;h<=MAX_H;h+=2){
@@ -254,6 +252,10 @@ function render(DRIVERS){
   if(vista.length){
     html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#EF9F27'></div><span style='color:#EF9F27'>Vista to Prefill</span></div>`;
     vista.forEach(d=>{html+=row(d);});
+  }
+  if(borland.length){
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#29B6F6'></div><span style='color:#29B6F6'>Borland to Prefill</span></div>`;
+    borland.forEach(d=>{html+=row(d);});
   }
   document.getElementById("timeline").innerHTML=html;
 

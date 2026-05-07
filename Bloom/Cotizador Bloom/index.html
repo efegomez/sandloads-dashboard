@@ -1,0 +1,2760 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cotizador — Bloom Design Studio</title>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #0F0D0B; color: #F0EBE1; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1A1714; }
+::-webkit-scrollbar-thumb { background: #3A3530; border-radius: 3px; }
+
+/* ─── FORM PANEL ─────────────────────────────── */
+.app-left  { height: 100vh; overflow-y: auto; background: #0F0D0B; padding: 40px 36px; }
+.app-right { height: 100vh; overflow-y: auto; background: #1A1714; padding: 20px; border-left: 1px solid #2A2520; }
+
+.bloom-logo {
+  font-size: 11px; letter-spacing: 0.35em; color: #C9A46A;
+  text-transform: uppercase; margin-bottom: 32px; font-family: 'Inter', sans-serif; font-weight: 400;
+}
+.step-bar { display: flex; gap: 8px; margin-bottom: 40px; }
+.step-dot {
+  height: 3px; flex: 1; border-radius: 2px; background: #2A2520;
+  transition: background 0.3s;
+}
+.step-dot.active  { background: #C9A46A; }
+.step-dot.done    { background: #6B8E6B; }
+
+.step-label {
+  font-size: 10px; letter-spacing: 0.2em; color: #6B6560;
+  text-transform: uppercase; margin-bottom: 24px; font-family: 'Inter', sans-serif;
+}
+
+h2.form-title {
+  font-size: 22px; font-weight: 700; color: #F0EBE1;
+  margin-bottom: 8px; letter-spacing: 0.05em; font-family: 'Inter', sans-serif;
+}
+p.form-sub { font-size: 13px; color: #7A7570; margin-bottom: 32px; font-family: 'Inter', sans-serif; }
+
+/* ─── INPUTS ─────────────────────────────────── */
+.field { margin-bottom: 24px; }
+.field label {
+  display: block; font-size: 10px; letter-spacing: 0.2em;
+  color: #9A9590; text-transform: uppercase; margin-bottom: 8px;
+  font-family: 'Inter', sans-serif; font-weight: 400;
+}
+.field input, .field select, .field textarea {
+  width: 100%; background: #1A1714; border: 1px solid #2A2520;
+  color: #F0EBE1; padding: 12px 14px; font-size: 14px;
+  font-family: 'Inter', sans-serif; border-radius: 4px; outline: none;
+  transition: border-color 0.2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: #C9A46A;
+}
+.field textarea { resize: vertical; min-height: 80px; }
+.field select option { background: #1A1714; }
+
+/* ─── BUTTONS ────────────────────────────────── */
+.btn-gold {
+  background: #C9A46A; color: #0F0D0B; border: none;
+  padding: 13px 28px; font-size: 12px; letter-spacing: 0.15em;
+  text-transform: uppercase; cursor: pointer; border-radius: 3px;
+  font-family: 'Inter', sans-serif; font-weight: 600;
+  transition: background 0.2s; width: 100%; margin-top: 8px;
+}
+.btn-gold:hover { background: #D4B07A; }
+.btn-dark {
+  background: transparent; color: #9A9590; border: 1px solid #2A2520;
+  padding: 12px 28px; font-size: 12px; letter-spacing: 0.12em;
+  text-transform: uppercase; cursor: pointer; border-radius: 3px;
+  font-family: 'Inter', sans-serif; font-weight: 400;
+  transition: all 0.2s; width: 100%; margin-top: 8px;
+}
+.btn-dark:hover { border-color: #6A6560; color: #C0BBB5; }
+.btn-row { display: flex; gap: 10px; margin-top: 24px; }
+.btn-row .btn-dark { width: auto; flex: 1; }
+.btn-row .btn-gold { width: auto; flex: 2; }
+
+/* ─── SERVICE CARDS ──────────────────────────── */
+.service-grid { display: grid; gap: 10px; margin-bottom: 24px; }
+.service-card {
+  border: 1px solid #2A2520; border-radius: 6px; padding: 16px;
+  cursor: pointer; transition: all 0.2s; background: #141210;
+}
+.service-card:hover { border-color: #4A4540; }
+.service-card.selected { border-color: #C9A46A; background: #1E1A14; }
+.service-card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+.service-card-name {
+  font-size: 14px; color: #F0EBE1; margin-bottom: 4px;
+}
+.service-card-desc { font-size: 12px; color: #6A6560; font-family: 'Inter', sans-serif; }
+.service-check {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid #3A3530; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.2s;
+}
+.service-card.selected .service-check { background: #C9A46A; border-color: #C9A46A; }
+.service-check svg { display: none; }
+.service-card.selected .service-check svg { display: block; }
+
+/* ─── TIER SELECTOR ──────────────────────────── */
+.tier-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 8px 0 16px; }
+.tier-btn {
+  padding: 10px 8px; border: 1px solid #2A2520; border-radius: 4px;
+  text-align: center; cursor: pointer; transition: all 0.2s; background: #141210;
+}
+.tier-btn .tier-name { font-size: 11px; letter-spacing: 0.15em; color: #9A9590; text-transform: uppercase; font-family: 'Inter', sans-serif; }
+.tier-btn .tier-price { font-size: 11px; color: #6A6560; margin-top: 3px; font-family: 'Inter', sans-serif; }
+.tier-btn.active-oro   { border-color: #C9A46A; background: #1E1A14; }
+.tier-btn.active-oro .tier-name { color: #C9A46A; }
+.tier-btn.active-plata { border-color: #A0A8B0; background: #1A1E20; }
+.tier-btn.active-plata .tier-name { color: #A0A8B0; }
+.tier-btn.active-bronce { border-color: #C08060; background: #1E1614; }
+.tier-btn.active-bronce .tier-name { color: #C08060; }
+.tier-btn.active-alta  { border-color: #C9A46A; background: #1E1A14; }
+.tier-btn.active-alta .tier-name { color: #C9A46A; }
+.tier-btn.active-media { border-color: #A0A8B0; background: #1A1E20; }
+.tier-btn.active-media .tier-name { color: #A0A8B0; }
+.tier-btn.active-baja  { border-color: #C08060; background: #1E1614; }
+.tier-btn.active-baja .tier-name { color: #C08060; }
+.tier-btn.active-clean { border-color: #8A9A8A; background: #141A14; }
+.tier-btn.active-clean .tier-name { color: #8A9A8A; }
+
+.config-block {
+  border: 1px solid #2A2520; border-radius: 6px; padding: 20px;
+  margin-bottom: 16px; background: #141210;
+}
+.config-block-title {
+  font-size: 13px; color: #C9A46A; margin-bottom: 4px; letter-spacing: 0.05em; font-weight: 700; font-family: 'Inter', sans-serif;
+}
+.config-block-sub { font-size: 11px; color: #6A6560; margin-bottom: 14px; font-family: 'Inter', sans-serif; }
+
+/* ─── SUMMARY ────────────────────────────────── */
+.summary-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid #2A2520; font-family: 'Inter', sans-serif;
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-service { font-size: 13px; color: #D4CFC7; }
+.summary-tier-badge {
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 2px; margin-left: 8px;
+  background: #2A2520; color: #9A9590;
+}
+.summary-price { font-size: 14px; color: #C9A46A; font-weight: 400; }
+.summary-total {
+  display: flex; justify-content: space-between;
+  padding: 16px 0 0; margin-top: 8px;
+}
+.summary-total-label {
+  font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: #9A9590; font-family: 'Inter', sans-serif;
+}
+.summary-total-price { font-size: 20px; color: #C9A46A; }
+
+/* ─── DOCUMENT PREVIEW ───────────────────────── */
+.doc-wrapper {
+  background: white; border-radius: 4px;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.4); overflow: hidden;
+  font-family: 'Inter', sans-serif;
+}
+.doc-cover {
+  background: #0B0A09; color: #F0EBE1;
+  min-height: 520px; padding: 36px 48px 28px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  position: relative;
+}
+.doc-cover .dc-client {
+  font-family: 'Inter', sans-serif; font-size: 14px;
+  letter-spacing: 0.45em; text-transform: uppercase;
+  font-weight: 400; color: #F0EBE1; text-align: center;
+}
+.doc-cover .dc-center {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+}
+.doc-cover .dc-footer {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  font-family: 'Inter', sans-serif;
+}
+.doc-cover .dc-quote {
+  font-size: 9.5px; letter-spacing: 0.28em; color: #F0EBE1;
+  text-transform: uppercase; line-height: 1.8;
+}
+.doc-cover .dc-quote b { font-weight: 700; }
+.doc-cover .dc-date  {
+  font-size: 9.5px; letter-spacing: 0.28em; color: #F0EBE1;
+  text-transform: uppercase; text-align: right; line-height: 1.8;
+}
+
+/* ─── BLOOM BRAND LOGO ───────────────────────── */
+.bloom-brand {
+  display: inline-flex; align-items: center; gap: 14px;
+  color: #FFFFFF;
+}
+.bloom-brand .bb-mark { flex-shrink: 0; }
+.bloom-brand .bb-word { display: flex; flex-direction: column; line-height: 1; }
+.bloom-brand .bb-name {
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  font-weight: 500; letter-spacing: 0.01em;
+}
+.bloom-brand .bb-tag {
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  font-weight: 400; letter-spacing: 0.22em;
+  text-transform: none; opacity: 0.92;
+}
+/* Cover size */
+.bloom-brand.bb-cover .bb-name { font-size: 56px; }
+.bloom-brand.bb-cover .bb-tag  { font-size: 14px; margin-top: 4px; }
+.bloom-brand.bb-cover          { gap: 10px; }
+/* Footer-mark only (used in page corners) */
+.bloom-mark-footer {
+  position: absolute; right: 30px; bottom: 14px;
+  color: #1a1410; opacity: 0.9; line-height: 0;
+}
+
+.doc-page { padding: 28px 36px 46px; border-top: 1px solid #eee; position: relative; min-height: 500px; }
+.doc-page-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 10px; border-bottom: 1px solid #e8e4dc; margin-bottom: 20px;
+}
+.doc-page-header .dph-category { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: #555; }
+.doc-page-header .dph-studio   { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: #1a1410; }
+
+.doc-section-title { font-size: 14px; font-weight: 700; color: #1a1410; margin-bottom: 4px; font-family: 'Inter', sans-serif; }
+.doc-section-sub   { font-size: 11px; color: #777; margin-bottom: 14px; }
+
+.doc-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
+.doc-table thead tr { background: #141210; color: #F0EBE1; }
+.doc-table thead th { padding: 8px 10px; text-align: left; font-weight: 400; letter-spacing: 0.07em; text-transform: uppercase; font-size: 9.5px; }
+.doc-table thead th.tc { text-align: center; min-width: 70px; }
+.doc-table tbody tr.sec-head td { background: #F5F2ED; color: #2a2520; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.07em; padding: 6px 10px; border-bottom: 1px solid #e0dbd0; }
+.doc-table tbody tr td { padding: 8px 10px; border-bottom: 1px solid #f0ece4; color: #2a2520; vertical-align: top; }
+.doc-table tbody tr td.tc { text-align: center; }
+.doc-table tbody tr.price-row td { background: #141210; color: #F0EBE1; padding: 10px; text-align: center; font-size: 12px; }
+.doc-table tbody tr.price-row td:first-child { text-align: left; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.doc-kv-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; }
+.doc-kv-table thead tr { background: #141210; color: #F0EBE1; }
+.doc-kv-table thead th { padding: 8px 10px; text-align: left; font-weight: 400; letter-spacing: 0.07em; text-transform: uppercase; font-size: 9.5px; }
+.doc-kv-table tbody td { padding: 9px 10px; border-bottom: 1px solid #f0ece4; color: #2a2520; vertical-align: top; }
+.doc-kv-table tbody tr.kv-price td { background: #141210; color: #C9A46A; padding: 10px; text-align: right; font-size: 13px; }
+.doc-kv-table tbody tr.kv-price td:first-child { text-align: left; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #F0EBE1; }
+
+.doc-scope { margin-bottom: 14px; }
+.doc-scope-title { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #2a2520; margin-bottom: 5px; }
+.doc-scope-text { font-size: 10px; color: #555; line-height: 1.7; }
+
+.doc-payment { background: #141210; color: #F0EBE1; padding: 28px 36px 52px; border-top: 1px solid #2a2520; position: relative; }
+.dp-label { font-size: 9px; letter-spacing: 0.22em; color: #C9A46A; text-transform: uppercase; margin-bottom: 10px; font-weight: 400; }
+.dp-text  { font-size: 11px; color: #D4CFC7; line-height: 1.9; margin-bottom: 20px; }
+.dp-terms { font-size: 10px; color: #8A8580; line-height: 1.9; }
+
+/* ─── PRINT ──────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white !important; }
+  .print-doc { display: block !important; }
+  .app-layout { display: none !important; }
+}
+@media screen { .print-doc { display: none; } }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- Error surfacing: capta errores reales en lugar de "Script error." genérico -->
+<script>
+window.addEventListener('error', function(e){
+  var msg = (e && (e.message || e.error && e.error.message)) || 'Error desconocido';
+  var src = (e && e.filename ? ' @ ' + e.filename + ':' + (e.lineno||'') : '');
+  console.warn('[Bloom ERR]', msg, src, e && e.error && e.error.stack);
+  var el = document.getElementById('bloom-err');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'bloom-err';
+    el.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;z-index:99999;background:#2A0F0F;color:#FFB3B3;border:1px solid #7A2020;padding:10px 14px;border-radius:6px;font:12px/1.4 monospace;max-height:40vh;overflow:auto;white-space:pre-wrap;';
+    document.body.appendChild(el);
+  }
+  el.textContent = '⚠ ' + msg + src + '\n' + (e && e.error && e.error.stack ? e.error.stack : '');
+});
+window.addEventListener('unhandledrejection', function(e){
+  console.warn('[Bloom PROMISE ERR]', e.reason);
+});
+</script>
+
+<script>
+/* Pre-compiled from JSX (no runtime Babel needed) */
+const {
+  useState,
+  useMemo
+} = React;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CATÁLOGO DE SERVICIOS (precios del Excel oficial de Bloom)
+// ──────────────────────────────────────────────────────────────────────────────
+// Tarifa base 2026. Actualizar aquí cuando cambie la tarifa por hora.
+// Los precios del CATALOG se calcularon con esta tarifa desde el Excel oficial.
+const HOURLY_RATE = 160000;
+
+const CATALOG = [{
+  id: 'branding',
+  name: 'Branding / Identidad de Marca',
+  category: 'IDENTIDAD DE MARCA',
+  subtitle: 'Branding',
+  intro: 'En Bloom hemos creado 3 paquetes para que escojas el que mejor se adapta a las necesidades de tu empresa o proyecto:',
+  desc: 'Desarrollo completo de identidad visual, ADN de marca, propuestas gráficas y manual de marca.',
+  type: 'tiers',
+  prices: { oro: 9600000, plata: 6336000, bronce: 3216000 },
+  table: [{
+    section: 'Branding',
+    col: 'Items',
+    rows: [
+      { name: 'ADN de marca', sub: 'Benchmarking - Estudio de mercado', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Perfil de públicos objetivos', oro: '✔', plata: '✔', bronce: '' },
+      { name: '', sub: 'Valores corporativos', oro: '✔', plata: '✔', bronce: '' },
+      { name: '', sub: 'Manifiesto de marca', oro: '✔', plata: '✔', bronce: '' },
+      { name: '', sub: 'Moodboards - Tablero de inspiración', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Rondas de cambios', oro: '2', plata: '1', bronce: '' },
+      { name: 'Identidad Verbal', sub: 'Voz y Tono', oro: '✔', plata: '✔', bronce: '' },
+      { name: '', sub: 'Audiencias', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Canales', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Rondas de cambios', oro: '2', plata: '1', bronce: '' },
+      { name: 'Propuestas gráficas', sub: 'Bocetación y conceptualización', oro: '4', plata: '3', bronce: '2' },
+      { name: '', sub: 'Propuestas terminadas a color', oro: '2', plata: '1', bronce: '1' },
+      { name: '', sub: 'Rondas de cambios', oro: '3', plata: '2', bronce: '2' },
+      { name: 'Universo de marca', sub: 'Ilustraciones Personalizadas (1 alta, 3 media o 5 baja)', oro: '✔', plata: '✔', bronce: '' },
+      { name: '', sub: 'Rondas de cambios ilustraciones', oro: '3', plata: '3', bronce: '' },
+      { name: '', sub: 'Recursos generados con IA (5 Iconos o 3 Texturas)', oro: '', plata: '', bronce: '✔' },
+      { name: '', sub: 'Lineamientos fotográficos', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Rondas de cambios', oro: '1', plata: '', bronce: '' },
+      { name: 'Manual de marca', sub: 'Paleta de color principal', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Paleta de color secundaria', oro: '✔', plata: '✔', bronce: '' },
+      { name: '', sub: 'Tipografías del logo', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Tipografías de la marca', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Composición del logo', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Usos incorrectos', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Escalabilidad', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Márgenes de distancia', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Mockup - Ejemplos de composiciones', oro: '4', plata: '3', bronce: '2' },
+      { name: 'Entregables', sub: 'Logo CMYK y RGB - Editable, JPG y PNG', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Manual de marca PDF', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Ilustraciones Personalizadas (Editable, PNG)', oro: '✔', plata: '✔', bronce: '' },
+      { name: '', sub: 'Recursos (texturas, iconos)', oro: '', plata: '', bronce: '✔' },
+      { name: '', sub: 'Guía para uso de archivos en PDF', oro: '', plata: '', bronce: '✔' },
+    ]
+  }],
+  notes: '*En caso de requerir rondas de cambios o propuestas adicionales no incluidas en el paquete, estas tendrán un valor extra.',
+  payment: '40% inicio · 30% logo aprobado · 30% archivos finales',
+  paymentDetail: 'Pago del 40% al iniciar el proyecto.\nPago del 30% una vez se escoja el logo final.\nPago del 30% para enviar paquete de archivos finales.'
+}, {
+  id: 'naming',
+  name: 'Naming',
+  category: 'IDENTIDAD DE MARCA',
+  subtitle: 'Naming',
+  intro: '',
+  desc: 'Creación del nombre para una marca, empresa o proyecto.',
+  type: 'tiers',
+  prices: { oro: 1966667, plata: 1396667, bronce: 1076667 },
+  table: [{
+    section: 'NAMING',
+    col: 'Items',
+    rows: [
+      { name: 'Naming', sub: 'Benchmark', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Primera ronda de Propuestas de nombres', oro: '6', plata: '4', bronce: '2' },
+      { name: '', sub: 'Segunda ronda de Propuestas de nombres', oro: '2', plata: '2', bronce: '2' },
+      { name: '', sub: 'Búsqueda de antecedentes marcarios 1', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: '', sub: 'Búsqueda de antecedentes marcarios 2', oro: '✔', plata: '', bronce: '' },
+    ]
+  }],
+  payment: '50% inicio · 50% entrega final',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% al enviar informe final.'
+}, {
+  id: 'aplicaciones',
+  name: 'Aplicaciones de Marca',
+  category: 'DISEÑO',
+  subtitle: 'Aplicaciones de Marca',
+  intro: '',
+  desc: 'Diseño de aplicaciones digitales y físicas de la marca: plantillas, look & feel y piezas merch.',
+  type: 'tiers',
+  prices: { oro: 3600000, plata: 2240000, bronce: 640000 },
+  table: [{
+    section: 'APLICACIONES',
+    col: 'Descripción',
+    rows: [
+      { name: 'Aplicaciones Digitales y Físicas', sub: 'Look and feel RRSS — Define el estilo visual y gráfico que guiará todas las piezas de la marca en redes sociales, asegurando coherencia en estética, colores, tipografía y composición.', oro: '✔', plata: '✔', bronce: '' },
+      { name: '', sub: 'Look and feel Web — Define el estilo gráfico y la estética del sitio web, incluyendo títulos, botones, iconografía y menú, alineados con la identidad de marca.', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Plantilla Mailing — Diseño base editable para correos electrónicos, alineado con la identidad visual de la marca.', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Plantilla RRSS Post — Diseño base para publicaciones en redes sociales, que permite mantener consistencia visual en el feed.', oro: '2', plata: '2', bronce: '' },
+      { name: '', sub: 'Plantilla RRSS Historia — Diseño base adaptado al formato vertical de historias, optimizado para contenido dinámico.', oro: '1', plata: '1', bronce: '' },
+      { name: '', sub: 'Plantilla Presentación — Diseño base para presentaciones corporativas que asegura coherencia visual en diapositivas.', oro: '5 diap.', plata: '', bronce: '' },
+      { name: '', sub: 'Aplicación merch — Pieza de diseño donde se implementa el logo con los elementos del universo visual en un soporte específico (gorra, tarjeta, firma de correo, etc.).', oro: '2', plata: '2', bronce: '2' },
+      { name: '', sub: 'Rondas de cambios — Ciclo de ajustes sencillos consolidados en una única retroalimentación y aplicados en una sola iteración.', oro: '6', plata: '4', bronce: '2' },
+    ]
+  }],
+  payment: '50% inicio · 50% archivos finales',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% para enviar paquete de archivos finales.'
+}, {
+  id: 'empaque',
+  name: 'Empaque',
+  category: 'DISEÑO DE EMPAQUE',
+  subtitle: 'Empaque',
+  intro: '',
+  desc: 'Diseño gráfico de empaque sobre troquel existente. Incluye look & feel, diagramación y rondas de cambios.',
+  type: 'tiers',
+  prices: { oro: 1920000, plata: 1520000, bronce: 1200000, clean: 880000 },
+  table: [{
+    section: 'EMPAQUES',
+    col: 'Descripción',
+    rows: [
+      { name: 'Look and feel', sub: 'Adaptación de la identidad visual de la marca al empaque, definiendo composición, estilo y acabados para garantizar una presentación coherente, atractiva y alineada con el producto.', oro: '✔', plata: '✔', bronce: '✔', clean: '✔' },
+      { name: 'Diseño y diagramación', sub: 'Diseño y diagramación de packaging definiendo composición, distribución de elementos y jerarquía de la información. Refinamiento y preparación de archivos para impresión.', oro: 'Ilustración Premium', plata: 'Ilustración Advanced', bronce: 'Ilustración Basic', clean: 'Sin ilustración' },
+      { name: 'Rondas de cambios\nsobre la ilustración', sub: 'Ciclo de ajustes sobre la ilustración.', oro: '3', plata: '2', bronce: '2', clean: 'N/A' },
+      { name: 'Rondas de cambios\ndiagramación y textos', sub: 'Ciclo de ajustes sobre diagramación, tamaño, color, ubicación y texto.', oro: '3', plata: '3', bronce: '3', clean: '3' },
+    ]
+  }],
+  note: 'En esta cotización, el empaque se basa en el diseño gráfico sobre un troquel existente. Si se requiere diseño 3D de la caja o un nuevo troquel, se debe realizar una nueva cotización.',
+  scope: '- Desarrollo del diseño gráfico\n- Propuesta de diseño basada en la identidad de marca del cliente.\n- Entrega de archivos listos para impresión\n- Rondas de cambios o propuestas adicionales tendrán valor extra.',
+  inputs: 'El cliente proporcionará los textos finales con ortografía revisada.\nEl cliente entregará toda la información necesaria sobre los productos.\nEl proveedor facilitará las medidas y el troquel para la producción.',
+  payment: '50% inicio · 50% archivos finales',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% para enviar paquete de archivos finales.'
+}, {
+  id: 'etiquetas',
+  name: 'Etiquetas',
+  category: 'DISEÑO DE EMPAQUE',
+  subtitle: 'Etiquetas',
+  intro: '',
+  desc: 'Diseño de etiquetas para personalizar productos. Incluye look & feel, diagramación y rondas de cambios.',
+  type: 'tiers',
+  prices: { oro: 1520000, plata: 960000, bronce: 832000, clean: 480000 },
+  table: [{
+    section: 'ETIQUETAS',
+    col: 'Descripción',
+    rows: [
+      { name: 'Look and feel', sub: 'Adaptación de la identidad visual de la marca a la etiqueta, definiendo composición, estilo y acabados para garantizar una presentación coherente, atractiva y alineada con el producto.', oro: '✔', plata: '✔', bronce: '✔', clean: '✔' },
+      { name: 'Diseño y diagramación', sub: 'Diseño y diagramación de la etiqueta, distribución de elementos y jerarquía de la información. Preparación de archivos para impresión.', oro: 'Ilustración Premium', plata: 'Ilustración Advanced', bronce: 'Ilustración Basic', clean: 'Sin ilustración' },
+      { name: 'Rondas de cambios\nsobre la ilustración', sub: 'Ciclo de ajustes sobre la ilustración.', oro: '3', plata: '2', bronce: '2', clean: 'N/A' },
+      { name: 'Rondas de cambios\ndiagramación y textos', sub: 'Ciclo de ajustes sobre diagramación, tamaño, color, ubicación y texto.', oro: '2', plata: '2', bronce: '2', clean: '2' },
+    ]
+  }],
+  scope: '- Desarrollo del diseño gráfico\n- Propuesta de diseño basada en la identidad de marca del cliente.\n- Entrega de archivos listos para impresión\n- Rondas adicionales tendrán valor extra.',
+  inputs: 'El cliente proporcionará los textos finales con ortografía revisada.\nEl cliente entregará toda la información necesaria sobre los productos.\nEl proveedor facilitará las medidas del troquel.',
+  payment: '50% inicio · 50% archivos finales',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% para enviar paquete de archivos finales.'
+}, {
+  id: 'ilustracion',
+  name: 'Ilustración',
+  category: 'DISEÑO',
+  subtitle: 'Ilustración',
+  intro: '',
+  desc: 'Creación de ilustraciones personalizadas en diferentes niveles de complejidad.',
+  type: 'tiers',
+  prices: { oro: 1200000, plata: 800000, bronce: 320000 },
+  table: [{
+    section: 'ILUSTRACIÓN',
+    col: 'Descripción',
+    rows: [
+      { name: 'Look and feel', sub: 'Define el estilo visual con el que se construye la ilustración: estética, uso de color, tipografía, tipo de ilustración y referentes visuales.', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: 'Ilustración', sub: 'Premium — Diseño complejo, múltiples elementos interconectados, texturas y sombras profundas, alto nivel de precisión.', oro: '✔', plata: '', bronce: '' },
+      { name: '', sub: 'Advanced — Diseño de complejidad estándar, composiciones claras, texturas sutiles, armonía visual.', oro: '', plata: '✔', bronce: '' },
+      { name: '', sub: 'Basic — Diseño sencillo, pocos elementos, formas básicas, colores planos, impacto visual inmediato.', oro: '', plata: '', bronce: '✔' },
+      { name: 'Rondas de cambios', sub: 'Ciclo de ajustes sencillos sobre la ilustración.', oro: '5', plata: '4', bronce: '2' },
+    ]
+  }],
+  payment: '50% inicio · 50% archivos finales',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% al enviar los archivos finales.'
+}, {
+  id: 'universo_marca',
+  name: 'Universo Gráfico',
+  category: 'DISEÑO',
+  subtitle: 'Universo Gráfico',
+  intro: '',
+  desc: 'Creación de un sistema de ilustraciones personalizadas y aplicaciones de marca con identidad visual coherente.',
+  type: 'tiers',
+  prices: { oro: 3344000, plata: 2784000, bronce: 1904000 },
+  table: [{
+    section: 'UNIVERSO DE MARCA',
+    col: 'Descripción',
+    rows: [
+      { name: 'Look and feel', sub: 'Adaptación de la identidad visual de la marca, definiendo composición, estilo y acabados para garantizar coherencia en la identidad.', oro: '✔', plata: '✔', bronce: '✔' },
+      { name: 'Ilustraciones', sub: 'Premium — Diseño complejo, múltiples elementos interconectados, texturas y sombras profundas.', oro: '1', plata: '0', bronce: '0' },
+      { name: '', sub: 'Advanced — Diseño de complejidad estándar, composiciones claras, texturas sutiles.', oro: '3', plata: '5', bronce: '3' },
+      { name: '', sub: 'Basic — Diseño sencillo, pocos elementos, formas básicas, colores planos.', oro: '2', plata: '2', bronce: '2' },
+      { name: 'Rondas de cambios\nsobre la ilustración', sub: 'Ciclo de ajustes sencillos sobre las ilustraciones.', oro: '3', plata: '2', bronce: '2' },
+      { name: 'Aplicaciones', sub: 'Pieza de diseño donde se implementa el logo con elementos del universo visual en un soporte específico (gorra, tarjeta, firma de correo, etc.).', oro: '3', plata: '2', bronce: '1' },
+      { name: 'Rondas de cambios\nsobre aplicaciones', sub: 'Ciclo de ajustes sencillos sobre las aplicaciones.', oro: '2', plata: '2', bronce: '1' },
+    ]
+  }],
+  payment: '50% inicio · 50% archivos finales',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% al enviar los archivos finales.'
+}, {
+  id: 'cuadernos',
+  name: 'Diseño de Cuadernos',
+  category: 'DISEÑO EDITORIAL',
+  subtitle: 'Diseño de Cuadernos',
+  intro: '',
+  desc: 'Diseño editorial de cuadernos con portada, páginas internas, separadores y stickers.',
+  type: 'tiers',
+  prices: { oro: 1814500, plata: 1425000, bronce: 1035500 },
+  table: [{
+    section: 'DISEÑO DE CUADERNOS',
+    col: 'Descripción',
+    rows: [
+      { name: 'Portada', sub: 'Premium: diseño complejo con ilustraciones detalladas, texturas y sombras.\nAdvanced: diseño balanceado sin complejidad extrema.\nBasic: diseño sencillo con formas claras y colores planos.', oro: '$570.000', plata: '$380.000', bronce: '$190.000' },
+      { name: 'Contraportada', sub: 'Elemento de la ilustración de portada + información de la empresa.', oro: '$142.500', plata: '$114.000', bronce: '$85.500' },
+      { name: 'Guarda trasera', sub: 'Diseño según solicitud del cliente: calendario, fechas importantes, marcación del cuaderno, etc.', oro: '$95.000', plata: '$76.000', bronce: '$57.000' },
+      { name: 'Guarda delantera', sub: '', oro: '$95.000', plata: '$76.000', bronce: '$57.000' },
+      { name: 'Inserto por un solo lado', sub: '', oro: '$95.000', plata: '$76.000', bronce: '$57.000' },
+      { name: 'Inserto por dos lados', sub: '', oro: '$190.000', plata: '$152.000', bronce: '$114.000' },
+      { name: 'Página interna', sub: 'Cuadriculado, líneas, puntos o libre. Incluye logo, frase o pequeño elemento de ilustración.', oro: '$57.000', plata: '$57.000', bronce: '$57.000' },
+      { name: 'Diseño de separador', sub: 'Diseño master de separadores. Una página = 3 separadores, cada uno con 2-3 ilustraciones.', oro: '$190.000', plata: '$152.000', bronce: '$114.000' },
+      { name: 'Adaptación separador mes a mes', sub: 'Mismo diseño master adaptado mes a mes con calendario personalizado en la parte de atrás.', oro: '$95.000', plata: '$76.000', bronce: '$57.000' },
+      { name: '1 hoja de stickers', sub: 'Página de 15 stickers inspirados en la ilustración de portada.', oro: '$95.000', plata: '$76.000', bronce: '$57.000' },
+      { name: 'Rondas de cambios (4)', sub: 'Ajustes incluidos en todo el proceso.', oro: '$190.000', plata: '$190.000', bronce: '$190.000' },
+    ]
+  }],
+  note: 'Tarifa por hora: $95.000. Ronda de cambios adicional: $47.500.',
+  payment: '50% inicio · 50% archivos finales',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% al enviar los archivos finales.'
+}, {
+  id: 'editorial',
+  name: 'Diseño Editorial de Libros',
+  category: 'DISEÑO EDITORIAL',
+  subtitle: 'Diseño Editorial de Libros',
+  intro: '',
+  desc: 'Diseño editorial completo para libros: portada, páginas internas, recursos gráficos e ilustraciones.',
+  type: 'tiers',
+  tierHeader: 'PROPUESTA',
+  prices: { oro: 4000000 },
+  table: [{
+    section: 'DISEÑO EDITORIAL',
+    col: 'Descripción',
+    rows: [
+      { name: 'Key Visual / Look and feel', sub: 'Define el concepto visual y el estilo gráfico que guiará todo el diseño del libro.', oro: '1' },
+      { name: 'Portada Fotográfica', sub: 'Diseño de la portada utilizando fotografía como elemento principal, integrada con la identidad visual del proyecto.', oro: '1' },
+      { name: 'Portada Ilustrada', sub: 'Diseño de la portada basada en ilustración, desarrollada según el concepto visual del libro.', oro: '1' },
+      { name: 'Contraportada', sub: 'Diseño de la parte posterior del libro, integrando texto, elementos gráficos y continuidad visual con la portada.', oro: '1' },
+      { name: 'Rondas de cambios portada y contraportada', sub: 'Ciclos de ajustes sobre portada y contraportada, sin implicar rediseños completos.', oro: '3' },
+      { name: 'Páginas internas', sub: 'Diseño de las páginas del libro siguiendo tipografía, jerarquías y composición coherentes.', oro: '10' },
+      { name: 'Fotografías (edición)', sub: 'Ajuste y tratamiento de imágenes: color, iluminación, recorte y optimización.', oro: '1' },
+      { name: 'Iconos o recursos', sub: 'Desarrollo o selección de elementos gráficos de apoyo que complementan el contenido visual del libro.', oro: '1' },
+      { name: 'Gráficos', sub: 'Diseño de visualizaciones de datos (diagramas de torta, barras) alineadas con la identidad visual.', oro: '3' },
+      { name: 'Ilustraciones', sub: 'Desarrollo de piezas ilustradas que apoyan el contenido y enriquecen la narrativa visual del libro.', oro: '3' },
+      { name: 'Rondas de cambios páginas internas y recursos', sub: 'Ciclos de ajustes sobre páginas internas y elementos gráficos.', oro: '10' },
+    ]
+  }],
+  payment: '50% inicio · 50% archivos finales',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% al enviar los archivos finales.'
+}, {
+  id: 'piezas',
+  name: 'Piezas Gráficas',
+  category: 'DISEÑO',
+  subtitle: 'Piezas Gráficas',
+  intro: '',
+  desc: 'Diseño de piezas gráficas individuales por tipo: RRSS, impresión, gran formato y editorial.',
+  type: 'tiers',
+  tierHeader: 'VALOR UNITARIO',
+  prices: { oro: 0 },
+  table: [{
+    section: 'PIEZAS GRÁFICAS',
+    col: 'Tipo de pieza',
+    rows: [
+      { name: 'Muy baja', sub: 'Ajuste de formato sobre pieza existente. Cambio de imagen o texto. Icono simple.', oro: '$80.000' },
+      { name: 'Baja', sub: 'Piezas para RRSS (cada pieza independiente aunque sea carrusel). Piezas para WhatsApp.', oro: '$160.000' },
+      { name: 'Media', sub: 'Plantillas digitales para RRSS/Mailing/WhatsApp. Piezas para impresión (volantes, posters, tropezones).', oro: '$320.000' },
+      { name: 'Alta', sub: 'Gran formato: pendones, ploter, eucoles, vallas. Piezas que requieren nueva estética o ilustraciones.', oro: '$480.000' },
+      { name: 'Editorial', sub: 'Presentaciones desde cero (cada diapositiva = 1 pieza). Informes desde cero (cada página = 1 pieza). Plantillas.', oro: '$80.000' },
+      { name: 'Ronda de cambios', sub: 'Rondas de cambios adicionales a las incluidas en cada pieza.', oro: '$80.000' },
+    ]
+  }],
+  notes: 'Agrega filas personalizadas en "Editar filas" para detallar las piezas que cotizas y sus precios. El total se calcula automáticamente.',
+  payment: '50% inicio · 50% archivos finales',
+  paymentDetail: 'Pago del 50% al iniciar el proyecto.\nPago del 50% al enviar los archivos finales.'
+}];
+
+// ──────────────────────────────────────────────────────────────────────────────
+// UTILIDADES
+// ──────────────────────────────────────────────────────────────────────────────
+const getToday = () => {
+  const d = new Date();
+  const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+  return `${String(d.getDate()).padStart(2, '0')} DE ${months[d.getMonth()]} DE ${d.getFullYear()}`;
+};
+const fmtCOP = n => {
+  if (!n && n !== 0) return '—';
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0
+  }).format(Math.round(n));
+};
+const fmtCOPShort = n => {
+  if (!n && n !== 0) return '—';
+  return '$' + new Intl.NumberFormat('es-CO', {
+    minimumFractionDigits: 0
+  }).format(Math.round(n));
+};
+const TIER_LABELS = {
+  oro: 'PREMIUM',
+  plata: 'ADVANCED',
+  bronce: 'BASIC',
+  clean: 'CLEAN',
+  alta: 'ALTA',
+  media: 'MEDIA',
+  baja: 'BAJA'
+};
+
+// ── Número de cotización ──────────────────────────────────────────────────────
+const QUOTE_COUNTER_KEY = 'bloom_quote_counter';
+const MONTHS_MAP = {
+  'ENERO': '01',
+  'FEBRERO': '02',
+  'MARZO': '03',
+  'ABRIL': '04',
+  'MAYO': '05',
+  'JUNIO': '06',
+  'JULIO': '07',
+  'AGOSTO': '08',
+  'SEPTIEMBRE': '09',
+  'OCTUBRE': '10',
+  'NOVIEMBRE': '11',
+  'DICIEMBRE': '12'
+};
+const genQuoteNumber = (clientName, dateStr) => {
+  const counter = parseInt(localStorage.getItem(QUOTE_COUNTER_KEY) || '0') + 1;
+  localStorage.setItem(QUOTE_COUNTER_KEY, String(counter));
+  // Nombre: sin tildes, sin espacios, max 12 chars
+  const name = (clientName || 'CLIENTE').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').substring(0, 12).toUpperCase();
+  // Fecha DDMMYY desde "17 DE ABRIL DE 2026"
+  const parts = (dateStr || '').toUpperCase().split(' DE ');
+  const dd = (parts[0] || '01').padStart(2, '0');
+  const mm = MONTHS_MAP[parts[1]] || '01';
+  const yy = (parts[2] || new Date().getFullYear().toString()).slice(-2);
+  return `${name}_${dd}${mm}${yy}_${String(counter).padStart(3, '0')}`;
+};
+
+// ── Helpers para ajuste de cantidades ─────────────────────────────────────────
+const isNum = v => v !== '' && v !== null && v !== undefined && !isNaN(parseFloat(String(v))) && String(v).trim() !== '' && String(v).trim() !== '✔' && String(v).trim() !== 'NA';
+const rowDelta = (row, tier) => {
+  const origKey = 'orig' + tier.charAt(0).toUpperCase() + tier.slice(1); // origOro, origPlata, origBronce
+  if (!isNum(row[tier]) || !isNum(row[origKey])) return 0;
+  return (parseFloat(row[tier]) - parseFloat(row[origKey])) * (row.unitPrice || 0);
+};
+const calcTierAdds = tableRows => {
+  const rows = (tableRows || []).filter(r => !r.deleted);
+  return {
+    oro: rows.reduce((s, r) => s + (r.isCustom ? r.oroPrice || 0 : rowDelta(r, 'oro')), 0),
+    plata: rows.reduce((s, r) => s + (r.isCustom ? r.plataPrice || 0 : rowDelta(r, 'plata')), 0),
+    bronce: rows.reduce((s, r) => s + (r.isCustom ? r.broncePrice || 0 : rowDelta(r, 'bronce')), 0),
+    clean: rows.reduce((s, r) => s + (r.isCustom ? r.cleanPrice || 0 : rowDelta(r, 'clean')), 0)
+  };
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+// COMPONENTES DEL DOCUMENTO (Preview)
+// ──────────────────────────────────────────────────────────────────────────────
+const TERMS = `- Validez de la oferta: 20 días.
+- Moneda: Pesos Colombianos.
+- El cronograma acordado con el cliente empezará a correr a partir de la fecha del pago del 1er anticipo.
+- Cada etapa del proyecto debe ser aprobada por medio de correo electrónico.
+- Los valores en esta cotización están sujetos a variaciones si los requerimientos llegaran a cambiar.
+- Cada corrección sobre etapa aprobada conlleva a costos adicionales equivalentes al 20% del total del proyecto.
+- El tiempo de respuesta por parte del cliente y Bloom Design Studio no debe superar una (1) semana calendario. En caso de que el cliente no dé respuesta en término de cuatro (4) semanas calendario deberá pagar la totalidad del saldo pendiente del proyecto.
+- El cliente no tiene derecho sobre ningún diseño, idea creativa o material hasta que se haga la transacción comercial final.
+- El cliente solo se llevará una de las propuestas realizadas. Todas las propuestas enviadas y no aprobadas quedarán a disposición de Bloom Design Studio.
+- Esta propuesta es estrictamente confidencial y las ideas, información, y procesos no deberán ser compartidos con externos.
+- El cliente podrá cancelar máximo en las 2 siguientes semanas después de haber realizado el 1er anticipo alguno de los servicios contratados que no hayan iniciado.
+- Una vez realizado el primer pago correspondiente a esta cotización, el cliente da por entendido y aceptados todos los términos y condiciones.`;
+
+// ─── LOGO BLOOM (PNG base64) ──────────────────────────────────────────
+// Real Bloom logo: full wordmark (white on dark) + ginkgo leaf mark (white/black)
+const BLOOM_FULL_DATAURL = "data:image/png;base64,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";
+const BLOOM_LEAF_W_DATAURL = "data:image/png;base64,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";
+const BLOOM_LEAF_B_DATAURL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAABQCAYAAABMIbYpAAAFyklEQVR42u2cW6gVVRjHfzN7ezkSetLSwkrkZJqmlVCYdJEiiJBIoiIqgnpJELtR9NBT1Gs9RG/dNCoKKro8BBEFRRc0S4niWAlBqWVeSjue3Htm97D/Kz+WM2fvs8+ss/ceXLCY2XNZs/7f/fvWzIbiWgRUgYo5FuuYbe78A8AW4E9gFNgNXK1zVTNWVeN0rUWmW2AzvGssuI1AI6OPAutznhN7RIranVynrQKkmphr9wLXA+cCM4Fh4C3gWU0wBQbErUGgbjicGhB3AwlwI/AdsAn4GZii42lIjsUeNU8VmNdzuNIArjPXrxawJOO61BDN9j+AK8wYa4BTQoFz7RrgY2AP8JMmUjeTT4Fj2t8BTNN963VtbQyC1E0/pmN/AY8ZQt5i9L6Q5vTncuC9DA7Ucybrrluj+x9sA2AWZ/3fX2cQfUyOtAKXAEuAD4G1ol5iHljJuddN7ir9HuzQkDU86VgJbNB+dSIAK7rudOApYLrEJjLWLG5jgsu1P6sANxQL6DPAbQJe6WRAe9OrHYiWFd2PNM7mDsfJEv0U2A+clUfouIVIJMBs4E7gVv2udEAoJAEY/xgVYPDc/O7QfOPxWMoq8CKwN0fRx2sgDoo4mwrioOXiVvnIE4hWzTEmFeBN4IYMJ0yHHBwE5ptxogIsu4ugzpYbqhnpywx/EmAq8JrA1cbD+jFaou1Ss19kS1qJo5PnhcAnwM0yDlMKorSj6CUK1YpqbtzDwL959sFZy/lyng0TPRTVnR7+CPw6QZ3O0sEfgHmtuPhNIHChuyPUPvnpqVlSt04X1idhMmmAcW3YeI5vXxYDRwM+fLJ6TUBv8mJntpcAnOXiLqVwERDFCnWi0EnkJFUWkE8cFNgIWZ8dLVKefuLgtqxAYkjFnzQn0+4Xa5oA/wAX2WTBhWuXykXU+hiki7yeF6Ypfky6Icf09pOYplK53JLEXaqzOKef9qGo1oHPgPPzQC4wYVs/ctPN9+EsTjq5PQ14ARjxHGm/hG67xqr/2PRoMfCBR516D4uuMzTPjVWySI2ZHVa1+n7ge91T8apqvdgOt5vqxZ74Xgu8BBxooybaTQ4+NJEKG8AZWiE66g2e9oD+1WUoO4r3Kh7YC4G3PS6mXbagdVnQCZVafK6uAJ4wCXOSQd2aV512PqtIC+0IvbOgcssJq01rgSMeJ9NxTC6ZoAQkpjwyOyrQajnrWtNS17taVnPnRoE3VOH+RbpbBeYAq4DbPb1JchZX2ylERarnLg9hnqdq+6Thyh7g4hb3DQKPSrTqGZytGRFP2zA0vxdcwTthsWaVeegjOjfNLKDYbgvQ0xVcPC4xq3UgzqnKiBujQAATpV9fyeEukcgwRuXAGa2653cXAouUsw4p11vhhWGpCU4aZqzPQ3DQceM+PXSzXwRqwzrHLa6fB9wDfGliZb+/AgyE5OA7Kv9fqdQl7qBsH2UYGj88XKAlgfOAQ9rfCzwdsvBTlZLvFLAowHNavUryf1UtBMAzgbnAyy2WtyeyJpGYhSFnqGxvAI1qIICLtH3fWyQJ0dJ2M4UiAS4F/qb5Ek/LSYRsod4BWwZ8Kx9W6WbOGAfQDYALgC+yCrD9DjDRmPOBTydB/yYVoOPUXInltm7rXyiAC8XJfb1QmAkBcEjhUx3vjYeyAJwjF9F1AxPKTQwogygtwJmqy1A2HbSZ+WjZOThaRg42DMCRMotoVfWQ0gF0+jZClz/kCM3Bnlptiil5OwnwJMBsHWyUEaADNYPj6xOldBNHlVGUVkQPcPwbiUYZAR6i+bFGaQEe5Pj3SWlZAQ4YnSxN2bBhdHAWnX9l1vMc3E9z4XKorBz8TduVvRAthQC4m2ZddHVZI5nDND/fWdYLlrRo8XELncPSQfetfVQWgA7Idjn7RYz/RZ6+SJe2aLuOYr4/7JnmODVb/nAPzRd7uuYuKoHGHKH5ss5lsqpbaVbb0jKIqNO5YZp/z3Ckm4H3f1ady+DQ4U/4AAAAAElFTkSuQmCC";
+function BloomMark({
+  size = 18,
+  variant = 'black',
+  style = {}
+}) {
+  const src = variant === 'white' ? BLOOM_LEAF_W_DATAURL : BLOOM_LEAF_B_DATAURL;
+  return /*#__PURE__*/React.createElement("img", {
+    src: src,
+    alt: "",
+    "aria-hidden": "true",
+    style: {
+      display: 'inline-block',
+      height: size,
+      width: 'auto',
+      lineHeight: 0,
+      ...style
+    }
+  });
+}
+function BloomBrand({
+  width = 260,
+  style = {}
+}) {
+  return /*#__PURE__*/React.createElement("img", {
+    src: BLOOM_FULL_DATAURL,
+    alt: "Bloom Design Studio",
+    style: {
+      display: 'block',
+      width,
+      height: 'auto',
+      ...style
+    }
+  });
+}
+function DocCover({
+  clientName,
+  date,
+  services
+}) {
+  const category = services.length > 0 ? CATALOG.find(c => c.id === services[0].id)?.category || 'SERVICIOS DE DISEÑO' : 'SERVICIOS DE DISEÑO';
+  // Date como "12 DE FEBRERO · 2026" (dos líneas: mes-día y año)
+  const rawDate = date || getToday();
+  let dateTop = rawDate,
+    dateBot = '';
+  const m = rawDate.match(/^(.+?)\s*(\d{4})$/);
+  if (m) {
+    dateTop = m[1].trim();
+    dateBot = m[2];
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "doc-cover"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dc-client"
+  }, clientName || 'NOMBRE DEL CLIENTE'), /*#__PURE__*/React.createElement("div", {
+    className: "dc-center"
+  }, /*#__PURE__*/React.createElement(BloomBrand, {
+    width: 280
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "dc-footer"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dc-quote"
+  }, "Cotizaci\xF3n ", /*#__PURE__*/React.createElement("b", null, "Servicios"), /*#__PURE__*/React.createElement("br", null), "de ", /*#__PURE__*/React.createElement("b", null, "Dise\xF1o")), /*#__PURE__*/React.createElement("div", {
+    className: "dc-date"
+  }, dateTop, /*#__PURE__*/React.createElement("br", null), dateBot)));
+}
+function DocServicePage({
+  svcConfig
+}) {
+  const def = CATALOG.find(c => c.id === svcConfig.id);
+  if (!def) return null;
+  const defaultShowTiers = Object.fromEntries(
+    ['oro','plata','bronce','clean'].filter(k => def.prices[k] != null).map(k => [k, true])
+  );
+  const showTiers = svcConfig.showTiers || defaultShowTiers;
+  const visTiers = ['oro', 'plata', 'bronce', 'clean'].filter(t => showTiers[t]);
+  const diffKey = svcConfig.difficulty || 'media';
+  const price = def.type === 'difficulty' ? def.prices[diffKey] : def.prices['plata'];
+  return /*#__PURE__*/React.createElement("div", {
+    className: "doc-page"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "doc-page-header"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "dph-category"
+  }, def.category), /*#__PURE__*/React.createElement("span", {
+    className: "dph-studio"
+  }, "B L O O M  D E S I G N  S T U D I O")), /*#__PURE__*/React.createElement("div", {
+    className: "doc-section-title"
+  }, def.subtitle), def.intro && /*#__PURE__*/React.createElement("div", {
+    className: "doc-section-sub"
+  }, def.intro), svcConfig.note && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: '#555',
+      marginBottom: 10,
+      fontStyle: 'italic'
+    }
+  }, svcConfig.note), def.type === 'tiers' && (() => {
+    const activeRows = (svcConfig.tableRows || []).filter(r => !r.deleted);
+    const tierAddsDoc = calcTierAdds(svcConfig.tableRows);
+    const nCols = 2 + visTiers.length;
+    return /*#__PURE__*/React.createElement("table", {
+      className: "doc-table"
+    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, def.table?.[0]?.section || def.subtitle), /*#__PURE__*/React.createElement("th", null, def.table?.[0]?.col || 'Descripción'), visTiers.includes('oro') && /*#__PURE__*/React.createElement("th", {
+      className: "tc"
+    }, visTiers.length === 1 ? (def.tierHeader || 'PREMIUM') : 'PREMIUM'), visTiers.includes('plata') && /*#__PURE__*/React.createElement("th", {
+      className: "tc"
+    }, "ADVANCED"), visTiers.includes('bronce') && /*#__PURE__*/React.createElement("th", {
+      className: "tc"
+    }, "BASIC"), visTiers.includes('clean') && /*#__PURE__*/React.createElement("th", {
+      className: "tc"
+    }, "CLEAN"))), /*#__PURE__*/React.createElement("tbody", null, activeRows.map(row => /*#__PURE__*/React.createElement(React.Fragment, {
+      key: row._id
+    }, row.sectionHeader && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+      colSpan: nCols,
+      style: {
+        background: '#F5F2ED',
+        fontWeight: 600,
+        fontSize: 9,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        padding: '6px 10px',
+        borderBottom: '1px solid #e0dbd0'
+      }
+    }, row.sectionHeader)), /*#__PURE__*/React.createElement("tr", {
+      style: row.isCustom ? {
+        background: '#FAFAF7'
+      } : {}
+    }, /*#__PURE__*/React.createElement("td", {
+      style: {
+        fontWeight: row.name ? 500 : 400,
+        whiteSpace: 'pre-line',
+        color: row.isCustom ? '#5A4010' : undefined
+      }
+    }, row.name), /*#__PURE__*/React.createElement("td", {
+      style: {
+        color: row.isCustom ? '#777' : '#555',
+        whiteSpace: 'pre-line',
+        fontSize: 10
+      }
+    }, row.sub), visTiers.includes('oro') && /*#__PURE__*/React.createElement("td", {
+      className: "tc",
+      style: row.isCustom && row.oroPrice ? {
+        color: '#5A4010'
+      } : {}
+    }, row.isCustom && row.oroPrice ? fmtCOPShort(row.oroPrice) : row.oro), visTiers.includes('plata') && /*#__PURE__*/React.createElement("td", {
+      className: "tc",
+      style: row.isCustom && row.plataPrice ? {
+        color: '#5A4010'
+      } : {}
+    }, row.isCustom && row.plataPrice ? fmtCOPShort(row.plataPrice) : row.plata), visTiers.includes('bronce') && /*#__PURE__*/React.createElement("td", {
+      className: "tc",
+      style: row.isCustom && row.broncePrice ? {
+        color: '#5A4010'
+      } : {}
+    }, row.isCustom && row.broncePrice ? fmtCOPShort(row.broncePrice) : row.bronce), visTiers.includes('clean') && /*#__PURE__*/React.createElement("td", {
+      className: "tc",
+      style: row.isCustom && row.cleanPrice ? {
+        color: '#5A4010'
+      } : {}
+    }, row.isCustom && row.cleanPrice ? fmtCOPShort(row.cleanPrice) : row.clean)))), /*#__PURE__*/React.createElement("tr", {
+      className: "price-row"
+    }, /*#__PURE__*/React.createElement("td", {
+      colSpan: 2
+    }, "Propuesta Económica"), visTiers.includes('oro') && /*#__PURE__*/React.createElement("td", null, fmtCOPShort((def.prices.oro || 0) + tierAddsDoc.oro)), visTiers.includes('plata') && /*#__PURE__*/React.createElement("td", null, fmtCOPShort((def.prices.plata || 0) + tierAddsDoc.plata)), visTiers.includes('bronce') && /*#__PURE__*/React.createElement("td", null, def.prices.bronce ? fmtCOPShort(def.prices.bronce + tierAddsDoc.bronce) : '—'), visTiers.includes('clean') && /*#__PURE__*/React.createElement("td", null, def.prices.clean ? fmtCOPShort(def.prices.clean + tierAddsDoc.clean) : '—'))));
+  })(), def.type === 'difficulty' && /*#__PURE__*/React.createElement("table", {
+    className: "doc-kv-table"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Nivel"), /*#__PURE__*/React.createElement("th", null, "Descripci\xF3n"), /*#__PURE__*/React.createElement("th", null, "Valor"))), /*#__PURE__*/React.createElement("tbody", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Alta"), /*#__PURE__*/React.createElement("td", null, "Dise\xF1os de gran formato, desarrollo desde cero de una est\xE9tica o ilustraciones complejas."), /*#__PURE__*/React.createElement("td", null, fmtCOPShort(def.prices.alta))), /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Media"), /*#__PURE__*/React.createElement("td", null, "Piezas editoriales, ilustraciones de complejidad media, creaci\xF3n de plantillas digitales."), /*#__PURE__*/React.createElement("td", null, fmtCOPShort(def.prices.media))), /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", null, "Baja"), /*#__PURE__*/React.createElement("td", null, "Piezas para redes sociales, adaptaciones, stickers, tarjetas sencillas."), /*#__PURE__*/React.createElement("td", null, fmtCOPShort(def.prices.baja))), /*#__PURE__*/React.createElement("tr", {
+    className: "kv-price"
+  }, /*#__PURE__*/React.createElement("td", {
+    colSpan: 2
+  }, "Propuesta Econ\xF3mica (", svcConfig.qty || 1, " ilustraci\xF3n", (svcConfig.qty || 1) > 1 ? 'es' : '', " \u2014 nivel ", TIER_LABELS[diffKey], ")"), /*#__PURE__*/React.createElement("td", null, fmtCOPShort((def.prices[diffKey] || 0) * (svcConfig.qty || 1)))))), def.note && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 10,
+      color: '#555',
+      marginBottom: 14,
+      fontStyle: 'italic',
+      borderLeft: '2px solid #C9A46A',
+      paddingLeft: 10
+    }
+  }, def.note), def.scope && /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-title"
+  }, "Alcance del servicio"), /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-text",
+    style: {
+      whiteSpace: 'pre-line'
+    }
+  }, def.scope)), def.inputs && /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-title"
+  }, "Insumos"), /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-text",
+    style: {
+      whiteSpace: 'pre-line'
+    }
+  }, def.inputs)), def.addl && /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-title"
+  }, "Servicios adicionales"), /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-text"
+  }, def.addl)), def.notes && /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-text",
+    style: {
+      whiteSpace: 'pre-line',
+      color: '#777'
+    }
+  }, def.notes)), svcConfig.customNote && /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-title"
+  }, "Notas adicionales"), /*#__PURE__*/React.createElement("div", {
+    className: "doc-scope-text"
+  }, svcConfig.customNote)), /*#__PURE__*/React.createElement("div", {
+    className: "bloom-mark-footer"
+  }, /*#__PURE__*/React.createElement(BloomMark, {
+    size: 16,
+    variant: "black"
+  })));
+}
+function DocPaymentPage({
+  services
+}) {
+  const def0 = services.length > 0 ? CATALOG.find(c => c.id === services[0].id) : null;
+  const paymentDetail = def0?.paymentDetail || 'Pago del 50% al iniciar el proyecto.\nPago del 50% para enviar paquete de archivos finales.';
+  return /*#__PURE__*/React.createElement("div", {
+    className: "doc-payment"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 36
+    }
+  }, /*#__PURE__*/React.createElement(BloomBrand, {
+    width: 180
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 32
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "dp-label"
+  }, "Datos para la consignaci\xF3n"), /*#__PURE__*/React.createElement("div", {
+    className: "dp-text",
+    style: {
+      whiteSpace: 'pre-line'
+    }
+  }, paymentDetail), /*#__PURE__*/React.createElement("div", {
+    className: "dp-text"
+  }, "Transferencia Bancaria", /*#__PURE__*/React.createElement("br", null), "DANIELA G\xD3MEZ SAA - CC: 1144070977", /*#__PURE__*/React.createElement("br", null), "Bancolombia \u2014 Cuenta de Ahorros No. 825 00000 633")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "dp-label"
+  }, "T\xE9rminos y condiciones"), /*#__PURE__*/React.createElement("div", {
+    className: "dp-terms",
+    style: {
+      whiteSpace: 'pre-line'
+    }
+  }, TERMS)), /*#__PURE__*/React.createElement("div", {
+    className: "bloom-mark-footer",
+    style: {
+      right: 30,
+      bottom: 18
+    }
+  }, /*#__PURE__*/React.createElement(BloomMark, {
+    size: 16,
+    variant: "white"
+  })));
+}
+function DocumentPreview({
+  clientName,
+  date,
+  services
+}) {
+  // solo para compatibilidad (no se usa directamente ahora)
+  const total = 0;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "doc-wrapper"
+  }, /*#__PURE__*/React.createElement(DocCover, {
+    clientName: clientName,
+    date: date,
+    services: services
+  }), services.map((s, i) => /*#__PURE__*/React.createElement(DocServicePage, {
+    key: i,
+    svcConfig: s
+  })), services.length > 0 && /*#__PURE__*/React.createElement(DocPaymentPage, {
+    services: services
+  }), services.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '40px 36px',
+      textAlign: 'center',
+      color: '#999',
+      fontSize: 13
+    }
+  }, "Agrega servicios en el paso 2 para ver la cotizaci\xF3n aqu\xED."));
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PASOS DEL FORMULARIO
+// ──────────────────────────────────────────────────────────────────────────────
+function Step1Client({
+  clientName,
+  setClientName,
+  date,
+  setDate,
+  elaboradoPor,
+  setElaboradoPor,
+  onNext
+}) {
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "step-label"
+  }, "Paso 1 de 3"), /*#__PURE__*/React.createElement("h2", {
+    className: "form-title"
+  }, "\xBFA qui\xE9n le vas a cotizar?"), /*#__PURE__*/React.createElement("p", {
+    className: "form-sub"
+  }, "Ingresa la informaci\xF3n del cliente para la portada de la propuesta."), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Nombre del cliente o empresa"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "Ej: Anuditos / TEDxCali / Empresa XYZ",
+    value: clientName,
+    onChange: e => setClientName(e.target.value.toUpperCase())
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Fecha de la cotizaci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "Ej: 13 DE ABRIL DE 2026",
+    value: date,
+    onChange: e => setDate(e.target.value.toUpperCase())
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "field"
+  }, /*#__PURE__*/React.createElement("label", null, "Elaborado por"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    placeholder: "Ej: Fernanda / Daniela",
+    value: elaboradoPor,
+    onChange: e => setElaboradoPor(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "btn-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-gold",
+    onClick: onNext,
+    disabled: !clientName.trim()
+  }, "Continuar \u2192")));
+}
+function Step2Services({
+  services,
+  setServices,
+  onBack,
+  onNext
+}) {
+  const mkEntry = id => {
+    const def = CATALOG.find(c => c.id === id);
+    const isDiff = def?.type === 'difficulty';
+    let tableRows = [];
+    let nextId = 0;
+    if (!isDiff && def?.table) {
+      def.table.forEach((group, gi) => {
+        group.rows.forEach((row, ri) => {
+          const oroVal = String(row.oro != null ? row.oro : '');
+          const plataVal = String(row.plata != null ? row.plata : '');
+          const bronceVal = String(row.bronce != null ? row.bronce : '');
+          const cleanVal = String(row.clean != null ? row.clean : '');
+          tableRows.push({
+            _id: nextId++,
+            sectionHeader: gi > 0 && ri === 0 ? group.section || '' : '',
+            name: row.name || '',
+            sub: row.sub || '',
+            oro: oroVal,
+            plata: plataVal,
+            bronce: bronceVal,
+            clean: cleanVal,
+            origOro: oroVal,
+            // valores originales del catálogo (para calcular delta)
+            origPlata: plataVal,
+            origBronce: bronceVal,
+            origClean: cleanVal,
+            unitPrice: 100000,
+            // tarifa por unidad (COP) — editable por el usuario
+            isCustom: false,
+            deleted: false,
+            oroPrice: 0,
+            plataPrice: 0,
+            broncePrice: 0,
+            cleanPrice: 0
+          });
+        });
+      });
+    }
+    return {
+      id,
+      showTiers: isDiff ? null : Object.fromEntries(
+        ['oro','plata','bronce','clean'].filter(k => def?.prices[k] != null).map(k => [k, true])
+      ),
+      difficulty: 'media',
+      qty: 1,
+      customNote: '',
+      extras: [],
+      tableRows,
+      _nextId: nextId
+    };
+  };
+  const toggle = id => {
+    setServices(prev => {
+      const exists = prev.find(s => s.id === id);
+      if (exists) return prev.filter(s => s.id !== id);
+      return [...prev, mkEntry(id)];
+    });
+  };
+  const selectAll = () => setServices(CATALOG.map(c => mkEntry(c.id)));
+  const selectNone = () => setServices([]);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "step-label"
+  }, "Paso 2 de 3"), /*#__PURE__*/React.createElement("h2", {
+    className: "form-title"
+  }, "\xBFQu\xE9 servicios incluir?"), /*#__PURE__*/React.createElement("p", {
+    className: "form-sub"
+  }, "Selecciona uno o m\xE1s servicios de forma individual, o usa los botones para seleccionar todos de una vez."), /*#__PURE__*/React.createElement("div", {
+    className: "btn-row",
+    style: {
+      marginBottom: 16,
+      marginTop: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-dark",
+    style: {
+      flex: 1
+    },
+    onClick: selectAll
+  }, "Seleccionar todos"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-dark",
+    style: {
+      flex: 1
+    },
+    onClick: selectNone
+  }, "Ninguno")), /*#__PURE__*/React.createElement("div", {
+    className: "service-grid"
+  }, CATALOG.map(svc => {
+    const selected = !!services.find(s => s.id === svc.id);
+    return /*#__PURE__*/React.createElement("div", {
+      key: svc.id,
+      className: `service-card ${selected ? 'selected' : ''}`,
+      onClick: () => toggle(svc.id)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "service-card-header"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "service-card-name"
+    }, svc.name), /*#__PURE__*/React.createElement("div", {
+      className: "service-card-desc"
+    }, svc.desc)), /*#__PURE__*/React.createElement("div", {
+      className: "service-check"
+    }, /*#__PURE__*/React.createElement("svg", {
+      width: "10",
+      height: "8",
+      viewBox: "0 0 10 8",
+      fill: "none"
+    }, /*#__PURE__*/React.createElement("path", {
+      d: "M1 3.5L4 6.5L9 1",
+      stroke: "#0F0D0B",
+      strokeWidth: "2",
+      strokeLinecap: "round"
+    })))));
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "btn-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-dark",
+    onClick: onBack
+  }, "\u2190 Atr\xE1s"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-gold",
+    onClick: onNext,
+    disabled: services.length === 0
+  }, "Configurar detalles \u2192")));
+}
+function Step3Config({
+  services,
+  setServices,
+  onBack,
+  onGenerate
+}) {
+  const [expandedEditors, setExpandedEditors] = useState({});
+  const toggleEditor = id => setExpandedEditors(prev => ({
+    ...prev,
+    [id]: !prev[id]
+  }));
+  const update = (id, key, val) => {
+    setServices(prev => prev.map(s => s.id === id ? {
+      ...s,
+      [key]: val
+    } : s));
+  };
+  const addTableRow = id => {
+    setServices(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      const newRow = {
+        _id: s._nextId || 0,
+        sectionHeader: '',
+        name: '',
+        sub: '',
+        oro: '',
+        plata: '',
+        bronce: '',
+        clean: '',
+        isCustom: true,
+        deleted: false,
+        oroPrice: 0,
+        plataPrice: 0,
+        broncePrice: 0,
+        cleanPrice: 0
+      };
+      return {
+        ...s,
+        tableRows: [...(s.tableRows || []), newRow],
+        _nextId: (s._nextId || 0) + 1
+      };
+    }));
+  };
+  const removeTableRow = (id, rowId) => {
+    setServices(prev => prev.map(s => s.id !== id ? s : {
+      ...s,
+      tableRows: (s.tableRows || []).map(r => r._id === rowId ? {
+        ...r,
+        deleted: true
+      } : r)
+    }));
+  };
+  const updateTableRow = (id, rowId, key, val) => {
+    setServices(prev => prev.map(s => s.id !== id ? s : {
+      ...s,
+      tableRows: (s.tableRows || []).map(r => r._id === rowId ? {
+        ...r,
+        [key]: val
+      } : r)
+    }));
+  };
+  const getTierAdds = svc => calcTierAdds(svc.tableRows);
+  const toggleTier = (id, tierKey) => {
+    setServices(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      const curr = s.showTiers || {
+        oro: true,
+        plata: true,
+        bronce: true
+      };
+      const next = {
+        ...curr,
+        [tierKey]: !curr[tierKey]
+      };
+      // No permitir dejar todos en false
+      if (!Object.values(next).some(Boolean)) return s;
+      return {
+        ...s,
+        showTiers: next
+      };
+    }));
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "step-label"
+  }, "Paso 3 de 3"), /*#__PURE__*/React.createElement("h2", {
+    className: "form-title"
+  }, "Ajusta cada servicio"), /*#__PURE__*/React.createElement("p", {
+    className: "form-sub"
+  }, "Activa los paquetes que quieres mostrarle al cliente (los 3 por defecto), agrega extras y notas."), services.map(svc => {
+    const def = CATALOG.find(c => c.id === svc.id);
+    if (!def) return null;
+    const isDiff = def.type === 'difficulty';
+    const tierAdds = getTierAdds(svc);
+    const defaultShowTiersS = Object.fromEntries(
+      ['oro','plata','bronce','clean'].filter(k => def.prices[k] != null).map(k => [k, true])
+    );
+    const showTiers = svc.showTiers || defaultShowTiersS;
+    return /*#__PURE__*/React.createElement("div", {
+      key: svc.id,
+      className: "config-block"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "config-block-title"
+    }, def.name), !isDiff && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "config-block-sub"
+    }, "Selecciona los paquetes a mostrar simult\xE1neamente en el documento"), /*#__PURE__*/React.createElement("div", {
+      className: "tier-row"
+    }, [['oro', def.tierHeader || 'PREMIUM'], ['plata', 'ADVANCED'], ['bronce', 'BASIC'], ['clean', 'CLEAN']]
+        .filter(([key]) => def.prices[key] != null)
+        .map(([key, label]) => {
+      const price = def.prices[key];
+      const active = showTiers[key] !== false;
+      return /*#__PURE__*/React.createElement("div", {
+        key: key,
+        className: `tier-btn ${active ? `active-${key}` : ''}`,
+        onClick: () => toggleTier(svc.id, key),
+        style: {
+          position: 'relative',
+          cursor: 'pointer'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          position: 'absolute',
+          top: 6,
+          right: 6,
+          width: 14,
+          height: 14,
+          borderRadius: 3,
+          border: active ? 'none' : '1.5px solid #4A4540',
+          background: active ? key === 'oro' ? '#C9A46A' : key === 'plata' ? '#A0A8B0' : key === 'clean' ? '#8A9A8A' : '#C08060' : 'transparent',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }
+      }, active && /*#__PURE__*/React.createElement("svg", {
+        width: "8",
+        height: "6",
+        viewBox: "0 0 8 6",
+        fill: "none"
+      }, /*#__PURE__*/React.createElement("path", {
+        d: "M1 3L3 5L7 1",
+        stroke: "#0F0D0B",
+        strokeWidth: "1.5",
+        strokeLinecap: "round"
+      }))), /*#__PURE__*/React.createElement("div", {
+        className: "tier-name",
+        style: {
+          marginRight: 8
+        }
+      }, label), /*#__PURE__*/React.createElement("div", {
+        className: "tier-price"
+      }, price ? fmtCOPShort(price + (tierAdds[key] || 0)) : '—'));
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: '#6A6560',
+        fontFamily: "'Inter',sans-serif",
+        marginBottom: 12,
+        marginTop: -6
+      }
+    }, "\u2714 seleccionado = visible en el documento. El cliente ve todos los precios simult\xE1neamente.")), isDiff && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "config-block-sub"
+    }, "Selecciona el nivel de dificultad"), /*#__PURE__*/React.createElement("div", {
+      className: "tier-row"
+    }, [['alta', 'ALTA'], ['media', 'MEDIA'], ['baja', 'BAJA']].map(([key, label]) => {
+      const price = def.prices[key];
+      const active = (svc.difficulty || 'media') === key;
+      return /*#__PURE__*/React.createElement("div", {
+        key: key,
+        className: `tier-btn ${active ? `active-${key}` : ''}`,
+        onClick: () => update(svc.id, 'difficulty', key)
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "tier-name"
+      }, label), /*#__PURE__*/React.createElement("div", {
+        className: "tier-price"
+      }, price ? fmtCOPShort(price) : '—'));
+    }))), isDiff && /*#__PURE__*/React.createElement("div", {
+      className: "field",
+      style: {
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("label", null, "Cantidad de ilustraciones"), /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      min: "1",
+      max: "50",
+      value: svc.qty || 1,
+      onChange: e => update(svc.id, 'qty', parseInt(e.target.value) || 1)
+    })), !isDiff && (() => {
+      const numRows = (svc.tableRows || []).filter(r => !r.deleted && !r.isCustom && (isNum(r.origOro) || isNum(r.origPlata) || isNum(r.origBronce)));
+      if (numRows.length === 0) return null;
+      const delta = getTierAdds(svc);
+      const hasDelta = Object.values(delta).some(v => v !== 0);
+      const showT = svc.showTiers || Object.fromEntries(
+        ['oro','plata','bronce','clean'].filter(k => def.prices[k] != null).map(k => [k, true])
+      );
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginBottom: 14,
+          borderTop: '1px solid #2A2520',
+          paddingTop: 12,
+          marginTop: 4
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10,
+          letterSpacing: '0.15em',
+          color: '#C9A46A',
+          textTransform: 'uppercase',
+          fontFamily: "'Inter',sans-serif",
+          marginBottom: 6
+        }
+      }, "Ajustar cantidades"), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          color: '#6A6560',
+          marginBottom: 10,
+          fontFamily: "'Inter',sans-serif"
+        }
+      }, "Modifica las unidades incluidas. El total se ajusta seg\xFAn el precio por unidad (default $100.000/u)."), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'grid',
+          gridTemplateColumns: '1fr 56px 56px 56px 76px',
+          gap: 4,
+          marginBottom: 4,
+          paddingBottom: 4,
+          borderBottom: '1px solid #2A2520'
+        }
+      }, ['Ítem', 'PREMIUM', 'ADVANCED', 'BASIC', '$/unidad'].map(h => /*#__PURE__*/React.createElement("span", {
+        key: h,
+        style: {
+          fontSize: 9,
+          color: '#6A6560',
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+          fontFamily: "'Inter',sans-serif",
+          textAlign: h === 'Ítem' ? 'left' : 'center'
+        }
+      }, h))), numRows.map(row => {
+        const changed = ['oro', 'plata', 'bronce', 'clean'].some(t => {
+          const ok = 'orig' + t.charAt(0).toUpperCase() + t.slice(1);
+          return isNum(row[ok]) && row[t] !== row[ok];
+        });
+        return /*#__PURE__*/React.createElement("div", {
+          key: row._id,
+          style: {
+            display: 'grid',
+            gridTemplateColumns: '1fr 56px 56px 56px 76px',
+            gap: 4,
+            marginBottom: 5,
+            alignItems: 'center',
+            padding: '4px 0',
+            borderBottom: '1px solid #1E1C1A'
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            fontSize: 11,
+            color: changed ? '#C9A46A' : '#D4CFC7',
+            fontFamily: "'Inter',sans-serif",
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          },
+          title: row.name || row.sub
+        }, row.name || row.sub || '—'), ['oro', 'plata', 'bronce', 'clean'].map(t => {
+          const ok = 'orig' + t.charAt(0).toUpperCase() + t.slice(1);
+          const editable = isNum(row[ok]);
+          const borderC = t === 'oro' ? '#C9A46A55' : t === 'plata' ? '#A0A8B055' : t === 'clean' ? '#8A9A8A55' : '#C0806055';
+          const textC = editable ? row[t] !== row[ok] ? t === 'oro' ? '#C9A46A' : t === 'plata' ? '#A0A8B0' : t === 'clean' ? '#8A9A8A' : '#E0906060' : '#9A9590' : '#3A3530';
+          return /*#__PURE__*/React.createElement("input", {
+            key: t,
+            type: editable ? 'number' : 'text',
+            value: row[t],
+            readOnly: !editable,
+            min: "0",
+            step: "1",
+            onChange: e => updateTableRow(svc.id, row._id, t, e.target.value),
+            style: {
+              background: editable ? '#1A1714' : 'transparent',
+              border: editable ? `1px solid ${borderC}` : 'none',
+              color: textC,
+              padding: '4px 2px',
+              borderRadius: 3,
+              fontSize: 11,
+              textAlign: 'center',
+              fontFamily: "'Inter',sans-serif",
+              outline: 'none',
+              width: '100%',
+              cursor: editable ? 'text' : 'default'
+            }
+          });
+        }), /*#__PURE__*/React.createElement("input", {
+          type: "number",
+          value: row.unitPrice ?? 100000,
+          min: "0",
+          step: "1000",
+          onChange: e => updateTableRow(svc.id, row._id, 'unitPrice', parseInt(e.target.value) || 0),
+          style: {
+            background: '#1A1714',
+            border: '1px solid #2A3020',
+            color: '#7A9060',
+            padding: '4px',
+            borderRadius: 3,
+            fontSize: 10,
+            textAlign: 'right',
+            fontFamily: "'Inter',sans-serif",
+            outline: 'none',
+            width: '100%'
+          }
+        }));
+      }), hasDelta && /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 8,
+          marginTop: 8,
+          flexWrap: 'wrap',
+          alignItems: 'center'
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 9,
+          color: '#6A6560',
+          fontFamily: "'Inter',sans-serif",
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em'
+        }
+      }, "Ajuste:"), ['oro', 'plata', 'bronce', 'clean'].filter(t => showT[t]).map(t => {
+        const d = delta[t];
+        if (!d) return null;
+        const cl = t === 'oro' ? '#C9A46A' : t === 'plata' ? '#A0A8B0' : '#C08060';
+        return /*#__PURE__*/React.createElement("span", {
+          key: t,
+          style: {
+            fontSize: 10,
+            color: d > 0 ? '#E8A060' : '#80C080',
+            fontFamily: "'Inter',sans-serif",
+            background: '#1A1714',
+            border: `1px solid ${cl}44`,
+            borderRadius: 3,
+            padding: '2px 8px'
+          }
+        }, (TIER_LABELS[t] || t.toUpperCase()), " ", d > 0 ? '+' : '', fmtCOPShort(d));
+      })));
+    })(), !isDiff && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginBottom: 14,
+        borderTop: '1px solid #2A2520',
+        paddingTop: 12,
+        marginTop: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        letterSpacing: '0.15em',
+        color: '#C9A46A',
+        textTransform: 'uppercase',
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, "Contenido de la tabla"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => toggleEditor(svc.id),
+      style: {
+        background: 'none',
+        border: '1px solid #3A3530',
+        color: '#9A9590',
+        borderRadius: 3,
+        cursor: 'pointer',
+        fontSize: 10,
+        padding: '4px 10px',
+        fontFamily: "'Inter',sans-serif",
+        letterSpacing: '0.08em'
+      }
+    }, expandedEditors[svc.id] ? '▲ Ocultar' : '▼ Editar filas')), expandedEditors[svc.id] && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: '#6A6560',
+        marginBottom: 10,
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, "Edita o elimina filas existentes. Agrega filas nuevas con valores por paquete y precio adicional opcional."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 52px 52px 52px 52px 26px',
+        gap: 3,
+        marginBottom: 4,
+        paddingBottom: 4,
+        borderBottom: '1px solid #2A2520'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: '#6A6560',
+        textTransform: 'uppercase',
+        letterSpacing: '0.12em',
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, "Fila"), ['PREMIUM', 'ADVANCED', 'BASIC', 'CLEAN'].map(t => /*#__PURE__*/React.createElement("span", {
+      key: t,
+      style: {
+        fontSize: 9,
+        color: '#6A6560',
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        fontFamily: "'Inter',sans-serif",
+        textAlign: 'center'
+      }
+    }, t)), /*#__PURE__*/React.createElement("span", null)), (svc.tableRows || []).filter(r => !r.deleted).map(row => /*#__PURE__*/React.createElement("div", {
+      key: row._id,
+      style: {
+        marginBottom: 6,
+        padding: '6px',
+        borderRadius: 4,
+        background: row.isCustom ? '#1A1E14' : '#141210',
+        border: `1px solid ${row.isCustom ? '#3A4530' : '#2A2520'}`
+      }
+    }, row.isCustom && /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      placeholder: "Encabezado de secci\xF3n (opcional)",
+      value: row.sectionHeader,
+      onChange: e => updateTableRow(svc.id, row._id, 'sectionHeader', e.target.value),
+      style: {
+        width: '100%',
+        background: 'transparent',
+        border: '1px dashed #3A4530',
+        color: '#7A9070',
+        padding: '3px 7px',
+        borderRadius: 3,
+        fontSize: 10,
+        fontFamily: "'Inter',sans-serif",
+        outline: 'none',
+        marginBottom: 4
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 52px 52px 52px 52px 26px',
+        gap: 3,
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      placeholder: "Nombre de la fila",
+      value: row.name,
+      onChange: e => updateTableRow(svc.id, row._id, 'name', e.target.value),
+      style: {
+        background: '#1A1714',
+        border: '1px solid #3A3530',
+        color: '#F0EBE1',
+        padding: '5px 7px',
+        borderRadius: 3,
+        fontSize: 11,
+        fontFamily: "'Inter',sans-serif",
+        outline: 'none'
+      }
+    }), ['oro', 'plata', 'bronce', 'clean'].map(t => /*#__PURE__*/React.createElement("input", {
+      key: t,
+      type: "text",
+      placeholder: "\u2014",
+      value: row[t],
+      onChange: e => updateTableRow(svc.id, row._id, t, e.target.value),
+      style: {
+        background: '#1A1714',
+        border: '1px solid #3A3530',
+        color: '#C9A46A',
+        padding: '5px 3px',
+        borderRadius: 3,
+        fontSize: 11,
+        fontFamily: "'Inter',sans-serif",
+        outline: 'none',
+        textAlign: 'center'
+      }
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => removeTableRow(svc.id, row._id),
+      style: {
+        background: 'none',
+        border: '1px solid #3A3530',
+        color: '#7A7570',
+        borderRadius: 3,
+        cursor: 'pointer',
+        fontSize: 13,
+        lineHeight: 1,
+        padding: '4px'
+      }
+    }, "\xD7")), /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      placeholder: "Descripci\xF3n (opcional)",
+      value: row.sub,
+      onChange: e => updateTableRow(svc.id, row._id, 'sub', e.target.value),
+      style: {
+        width: '100%',
+        background: 'transparent',
+        border: '1px solid #2A2520',
+        color: '#7A7570',
+        padding: '3px 7px',
+        borderRadius: 3,
+        fontSize: 10,
+        fontFamily: "'Inter',sans-serif",
+        outline: 'none',
+        marginTop: 4
+      }
+    }), row.isCustom && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'auto 52px 52px 52px 52px 26px',
+        gap: 3,
+        marginTop: 4,
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: '#6A9060',
+        fontFamily: "'Inter',sans-serif",
+        letterSpacing: '0.05em'
+      }
+    }, "+ precio por paquete:"), [['oroPrice', '#C9A46A'], ['plataPrice', '#A0A8B0'], ['broncePrice', '#C08060'], ['cleanPrice', '#8A9A8A']].map(([pk, cl]) => /*#__PURE__*/React.createElement("input", {
+      key: pk,
+      type: "number",
+      placeholder: "0",
+      value: row[pk] || '',
+      onChange: e => updateTableRow(svc.id, row._id, pk, parseInt(e.target.value) || 0),
+      style: {
+        background: '#1A1714',
+        border: `1px solid ${cl}44`,
+        color: cl,
+        padding: '3px',
+        borderRadius: 3,
+        fontSize: 10,
+        fontFamily: "'Inter',sans-serif",
+        outline: 'none',
+        textAlign: 'center'
+      }
+    })), /*#__PURE__*/React.createElement("span", null)))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => addTableRow(svc.id),
+      style: {
+        background: 'none',
+        border: '1px dashed #3A4530',
+        color: '#6A9060',
+        padding: '7px 14px',
+        borderRadius: 3,
+        cursor: 'pointer',
+        fontSize: 11,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        fontFamily: "'Inter',sans-serif",
+        marginTop: 4,
+        width: '100%'
+      }
+    }, "+ Agregar fila"), (() => {
+      const cr = (svc.tableRows || []).filter(r => r.isCustom && !r.deleted);
+      const tO = cr.reduce((s, r) => s + (r.oroPrice || 0), 0);
+      const tP = cr.reduce((s, r) => s + (r.plataPrice || 0), 0);
+      const tB = cr.reduce((s, r) => s + (r.broncePrice || 0), 0);
+      if (!tO && !tP && !tB) return null;
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 8,
+          fontSize: 11,
+          color: '#C9A46A',
+          fontFamily: "'Inter',sans-serif",
+          textAlign: 'right'
+        }
+      }, "+ Oro ", fmtCOPShort(tO), " \xB7 Plata ", fmtCOPShort(tP), " \xB7 Bronce ", fmtCOPShort(tB));
+    })())), /*#__PURE__*/React.createElement("div", {
+      className: "field",
+      style: {
+        marginBottom: 0
+      }
+    }, /*#__PURE__*/React.createElement("label", null, "Nota personalizada (opcional)"), /*#__PURE__*/React.createElement("textarea", {
+      placeholder: "Ej: Incluye 2 cajas diferentes / El cliente ya tiene troquel / Proyecto en fase 1\u2026",
+      value: svc.customNote || '',
+      onChange: e => update(svc.id, 'customNote', e.target.value)
+    })));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: '1px solid #2A2520',
+      borderRadius: 6,
+      padding: 20,
+      marginTop: 8,
+      background: '#141210'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: '0.2em',
+      color: '#9A9590',
+      textTransform: 'uppercase',
+      marginBottom: 16,
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, "Resumen de la propuesta"), services.map(svc => {
+    const def = CATALOG.find(c => c.id === svc.id);
+    if (!def) return null;
+    const isDiff = def.type === 'difficulty';
+    const ta = getTierAdds(svc);
+    const defaultShowTiersS = Object.fromEntries(
+      ['oro','plata','bronce','clean'].filter(k => def.prices[k] != null).map(k => [k, true])
+    );
+    const showTiers = svc.showTiers || defaultShowTiersS;
+    const visTiers = ['oro', 'plata', 'bronce', 'clean'].filter(t => showTiers[t]);
+    return /*#__PURE__*/React.createElement("div", {
+      key: svc.id,
+      style: {
+        borderBottom: '1px solid #2A2520',
+        paddingBottom: 10,
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: '#D4CFC7',
+        marginBottom: 6,
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, def.name), isDiff ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "summary-tier-badge",
+      style: {
+        marginLeft: 0
+      }
+    }, TIER_LABELS[svc.difficulty || 'media'], (svc.qty || 1) > 1 ? ` ×${svc.qty}` : ''), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        color: '#C9A46A',
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, fmtCOPShort((def.prices[svc.difficulty || 'media'] || 0) * (svc.qty || 1)))) : /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8,
+        flexWrap: 'wrap'
+      }
+    }, visTiers.map(t => /*#__PURE__*/React.createElement("div", {
+      key: t,
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        background: '#1A1714',
+        border: `1px solid ${t === 'oro' ? '#C9A46A' : t === 'plata' ? '#A0A8B0' : '#C08060'}`,
+        borderRadius: 4,
+        padding: '6px 10px',
+        minWidth: 90
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        letterSpacing: '0.15em',
+        color: t === 'oro' ? '#C9A46A' : t === 'plata' ? '#A0A8B0' : '#C08060',
+        textTransform: 'uppercase',
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, TIER_LABELS[t] || t.toUpperCase()), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: '#F0EBE1',
+        marginTop: 2,
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, fmtCOPShort((def.prices[t] || 0) + (ta[t] || 0)))))));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      paddingTop: 8,
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      letterSpacing: '0.15em',
+      color: '#9A9590',
+      textTransform: 'uppercase',
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, "Rango de propuesta"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: '#C9A46A',
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, (() => {
+    let allPrices = [];
+    services.forEach(s => {
+      const def = CATALOG.find(c => c.id === s.id);
+      if (!def) return;
+      const ta2 = getTierAdds(s);
+      if (def.type === 'difficulty') {
+        allPrices.push((def.prices[s.difficulty || 'media'] || 0) * (s.qty || 1));
+      } else {
+        const showT = s.showTiers || {
+          oro: true,
+          plata: true,
+          bronce: true
+        };
+        ['oro', 'plata', 'bronce', 'clean'].filter(t => showT[t]).forEach(t => {
+          allPrices.push((def.prices[t] || 0) + (ta2[t] || 0));
+        });
+      }
+    });
+    if (allPrices.length === 0) return '—';
+    const mn = Math.min(...allPrices),
+      mx = Math.max(...allPrices);
+    return mn === mx ? fmtCOPShort(mn) : `${fmtCOPShort(mn)} – ${fmtCOPShort(mx)}`;
+  })()))), /*#__PURE__*/React.createElement("div", {
+    className: "btn-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-dark",
+    onClick: onBack
+  }, "\u2190 Atr\xE1s"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-gold",
+    onClick: onGenerate
+  }, "Generar cotizaci\xF3n \u2192")));
+}
+
+// URL del Apps Script — se guarda en localStorage para no reconfigurar cada vez
+const SHEETS_KEY = 'bloom_sheets_url';
+function StepGenerate({
+  clientName,
+  date,
+  services,
+  quoteNumber,
+  elaboradoPor,
+  onBack
+}) {
+  const [showModal, setShowModal] = useState(false);
+  const [estado, setEstado] = useState('Enviada');
+  const [notaReg, setNotaReg] = useState('');
+  const [sheetsUrl, setSheetsUrl] = useState(() => localStorage.getItem(SHEETS_KEY) || '');
+  const [sheetsUrlTmp, setSheetsUrlTmp] = useState(() => localStorage.getItem(SHEETS_KEY) || '');
+  const [regStatus, setRegStatus] = useState(null); // null | 'loading' | 'ok' | 'error'
+  const [showUrlConfig, setShowUrlConfig] = useState(false);
+
+  // Calcula totales para el registro
+  const calcTotals = () => {
+    let oro = 0,
+      plata = 0,
+      bronce = 0,
+      clean = 0;
+    const svcNames = [];
+    services.forEach(s => {
+      const def = CATALOG.find(c => c.id === s.id);
+      if (!def) return;
+      svcNames.push(def.name);
+      const ta = calcTierAdds(s.tableRows);
+      if (def.type === 'difficulty') {
+        const v = (def.prices[s.difficulty || 'media'] || 0) * (s.qty || 1);
+        oro += v;
+        plata += v;
+        bronce += v;
+      } else {
+        oro += (def.prices.oro || 0) + (ta.oro || 0);
+        plata += (def.prices.plata || 0) + (ta.plata || 0);
+        bronce += (def.prices.bronce != null ? def.prices.bronce : def.prices.plata || 0) + (ta.bronce || 0);
+        clean += (def.prices.clean || 0) + (ta.clean || 0);
+      }
+    });
+    return {
+      oro,
+      plata,
+      bronce,
+      clean,
+      svcNames
+    };
+  };
+  const registrar = async () => {
+    if (!sheetsUrl) {
+      setShowUrlConfig(true);
+      return;
+    }
+    setRegStatus('loading');
+    const {
+      oro,
+      plata,
+      bronce,
+      clean,
+      svcNames
+    } = calcTotals();
+    const payload = {
+      fecha: date,
+      numeroCot: quoteNumber,
+      cliente: clientName,
+      elaboradoPor: elaboradoPor,
+      servicios: svcNames.join(', '),
+      totalOro: oro,
+      totalPlata: plata,
+      totalBronce: bronce,
+      totalMin: Math.min(oro, plata, bronce),
+      totalMax: Math.max(oro, plata, bronce),
+      estado: estado,
+      notas: notaReg
+    };
+    try {
+      await fetch(sheetsUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      setRegStatus('ok');
+      setTimeout(() => {
+        setShowModal(false);
+        setRegStatus(null);
+        setNotaReg('');
+      }, 2200);
+    } catch (e) {
+      setRegStatus('error');
+    }
+  };
+
+  // printMode=true → retorna el HTML para abrir en ventana e imprimir
+  // printMode=false → descarga como .doc
+  const generateWord = (printMode = false) => {
+    const def0 = services.length > 0 ? CATALOG.find(c => c.id === services[0].id) : null;
+    const paymentDetail = def0?.paymentDetail || 'Pago del 50% al iniciar el proyecto.\nPago del 50% para enviar paquete de archivos finales.';
+    let html = `<!DOCTYPE html><html lang="es">
+<head><meta charset="UTF-8">
+<title>Cotización Bloom — ${clientName || 'cliente'}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+body { font-family: 'Inter', sans-serif; font-weight: 400; color: #1a1a1a; background: white; }
+@page { margin: 15mm 18mm; size: A4 portrait; }
+h1 { font-size: 26pt; letter-spacing: 6pt; text-transform: uppercase; font-weight: 700; text-align: center; font-family: 'Inter', sans-serif; }
+h2 { font-size: 10pt; letter-spacing: 3pt; text-transform: uppercase; color: #888; text-align: center; font-family: 'Inter', sans-serif; font-weight: 400; }
+h3 { font-size: 11pt; font-weight: 700; text-transform: uppercase; letter-spacing: 2pt; font-family: 'Inter', sans-serif;
+     border-bottom: 1pt solid #ccc; padding-bottom: 4pt; margin-top: 20pt; margin-bottom: 10pt; }
+table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 14pt; }
+th { background: #141210; color: white; padding: 7pt 9pt; text-align: left;
+     font-weight: 700; text-transform: uppercase; font-size: 8.5pt; font-family: 'Inter', sans-serif; }
+th.tc { text-align: center; }
+td { padding: 6pt 9pt; border-bottom: 1pt solid #f0ece4; vertical-align: top; font-family: 'Inter', sans-serif; font-weight: 400; }
+td.tc { text-align: center; }
+tr.sec td { background: #F5F2ED; font-weight: 700; font-size: 8pt; text-transform: uppercase; }
+tr.price td { background: #141210; color: white; padding: 8pt; text-align: center; font-size: 11pt; font-weight: 400; }
+tr.price td:first-child { text-align: left; font-size: 8pt; text-transform: uppercase; color: white; }
+.page { padding: 20pt 0; page-break-after: always; position: relative; }
+.page:last-child { page-break-after: auto; }
+
+/* Cover */
+.cover { background: #0B0A09; color: #F0EBE1; min-height: 100vh; display: flex;
+         flex-direction: column; justify-content: space-between;
+         padding: 40pt 44pt 32pt; }
+.cover-client { text-align: center; font-size: 11pt; letter-spacing: 5pt;
+                text-transform: uppercase; font-weight: 400; color: #F0EBE1; }
+.cover-center { flex: 1; display: flex; align-items: center; justify-content: center; }
+.cover-footer { display: flex; justify-content: space-between; align-items: flex-end; }
+.cover-quote  { font-size: 8.5pt; letter-spacing: 3.5pt; color: #F0EBE1;
+                text-transform: uppercase; line-height: 1.8; font-weight: 400; }
+.cover-quote b { font-weight: 700; }
+.cover-date   { font-size: 8.5pt; letter-spacing: 3.5pt; color: #F0EBE1;
+                text-transform: uppercase; text-align: right; line-height: 1.8; font-weight: 400; }
+
+/* Bloom brand logo */
+.bloom-brand-print { display: inline-flex; align-items: center; gap: 10pt; color: #FFFFFF; }
+.bloom-brand-print .bb-leaf { flex-shrink: 0; line-height: 0; }
+.bloom-brand-print .bb-word { display: flex; flex-direction: column; line-height: 1; }
+.bloom-brand-print .bb-name { font-family: 'Cormorant Garamond', Georgia, serif;
+                              font-weight: 500; font-size: 48pt; letter-spacing: 1pt; }
+.bloom-brand-print .bb-tag  { font-family: 'Cormorant Garamond', Georgia, serif;
+                              font-weight: 400; font-size: 11pt; letter-spacing: 4pt; margin-top: 2pt; }
+/* Small inline version for payment header */
+.bloom-brand-print.bb-sm .bb-name { font-size: 18pt; }
+.bloom-brand-print.bb-sm .bb-tag  { font-size: 8pt; letter-spacing: 3pt; margin-top: 1pt; }
+
+/* Footer leaf mark (bottom-right on each page) */
+.bloom-footer-mark { position: absolute; right: 18pt; bottom: 12pt; line-height: 0; }
+
+.page-header { display: flex; justify-content: space-between; align-items: center;
+               padding-bottom: 8pt; border-bottom: 1pt solid #e8e4dc; margin-bottom: 16pt; }
+.page-header .cat   { font-size: 8pt; letter-spacing: 2pt; text-transform: uppercase; color: #555; font-weight: 400; }
+.page-header .bloom { font-size: 8pt; letter-spacing: 2pt; text-transform: uppercase; color: #1a1410; font-weight: 400; }
+.section-title { font-size: 13pt; font-weight: 700; color: #1a1410; margin-bottom: 12pt; }
+.scope-title { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1pt; margin: 10pt 0 4pt; }
+.scope-text  { font-size: 9pt; color: #555; line-height: 1.7; white-space: pre-line; font-weight: 400; }
+.payment-page { background: #141210; color: #F0EBE1; padding: 30pt 36pt 50pt; min-height: 100vh; position: relative; }
+.label { font-size: 8pt; letter-spacing: 2pt; color: #C9A46A; text-transform: uppercase; margin-bottom: 8pt; font-weight: 700; }
+.payment-text  { font-size: 10pt; color: #D4CFC7; line-height: 2; white-space: pre-line; margin-bottom: 18pt; font-weight: 400; }
+.terms { font-size: 8.5pt; color: #8A8580; line-height: 1.9; white-space: pre-line; font-weight: 400; }
+.note-bar { border-left: 2pt solid #C9A46A; padding-left: 8pt; font-size: 9pt; color: #555; font-style: italic; margin: 10pt 0; font-weight: 400; }
+</style></head><body>`;
+
+    // Helpers del logo para el HTML generado (usan el logo real embebido)
+    const BRAND_HTML = (width = 280) => `<img src="${BLOOM_FULL_DATAURL}" alt="Bloom Design Studio" width="${width}" style="display:block;max-width:100%;height:auto;" />`;
+    const FOOTER_LEAF = (variant = 'black', height = 18) => {
+      const src = variant === 'white' ? BLOOM_LEAF_W_DATAURL : BLOOM_LEAF_B_DATAURL;
+      return `<img src="${src}" alt="" height="${height}" style="position:absolute;bottom:18px;right:22px;width:auto;" />`;
+    };
+
+    // Cover
+    let coverDate = date || '';
+    let coverDateTop = coverDate,
+      coverDateBot = '';
+    const dMatch = coverDate.match(/^(.+?)\s*(\d{4})$/);
+    if (dMatch) {
+      coverDateTop = dMatch[1].trim();
+      coverDateBot = dMatch[2];
+    }
+    html += `<div class="cover page">
+  <div class="cover-client">${(clientName || 'CLIENTE').toUpperCase()}</div>
+  <div class="cover-center">${BRAND_HTML(320)}</div>
+  <div class="cover-footer">
+    <div class="cover-quote">Cotización <b>Servicios</b><br/>de <b>Diseño</b></div>
+    <div class="cover-date">${coverDateTop}<br/>${coverDateBot}</div>
+  </div>
+</div>`;
+
+    // Services
+    services.forEach(svc => {
+      const def = CATALOG.find(c => c.id === svc.id);
+      if (!def) return;
+      html += `<div class="page">`;
+      html += `<div class="page-header"><span class="cat">${def.category}</span><span class="bloom">B L O O M &nbsp; D E S I G N &nbsp; S T U D I O</span></div>`;
+      html += `<div class="section-title">${def.subtitle}</div>`;
+      const svcShowTiers = svc.showTiers || {
+        oro: true,
+        plata: true,
+        bronce: true
+      };
+      const svcVisTiers = ['oro', 'plata', 'bronce', 'clean'].filter(t => svcShowTiers[t]);
+      const svcDiffKey = svc.difficulty || 'media';
+      if (def.type === 'tiers') {
+        const activeRowsW = (svc.tableRows || []).filter(r => !r.deleted);
+        const taW = calcTierAdds(svc.tableRows);
+        const nColsW = 2 + svcVisTiers.length;
+        html += `<table><thead><tr>`;
+        html += `<th>${def.table?.[0]?.section || def.subtitle}</th><th>${def.table?.[0]?.col || 'Descripción'}</th>`;
+        svcVisTiers.forEach(t => {
+          html += `<th class="tc">${TIER_LABELS[t] || t.toUpperCase()}</th>`;
+        });
+        html += `</tr></thead><tbody>`;
+        activeRowsW.forEach(row => {
+          if (row.sectionHeader) {
+            html += `<tr class="sec"><td colspan="${nColsW}">${row.sectionHeader}</td></tr>`;
+          }
+          const rowStyle = row.isCustom ? ' style="background:#FAFAF7"' : '';
+          html += `<tr${rowStyle}><td style="font-weight:${row.name ? '600' : '400'}">${row.name || ''}</td><td style="font-size:8.5pt;color:#555;">${row.sub || ''}</td>`;
+          svcVisTiers.forEach(t => {
+            const pk = t + 'Price';
+            const cellVal = row.isCustom && row[pk] ? fmtCOPShort(row[pk]) : row[t] || '';
+            const cellStyle = row.isCustom ? ' style="color:#5A4010"' : '';
+            html += `<td class="tc"${cellStyle}>${cellVal}</td>`;
+          });
+          html += `</tr>`;
+        });
+        html += `<tr class="price"><td colspan="2">Propuesta Económica</td>`;
+        svcVisTiers.forEach(t => {
+          const p = (def.prices[t] || 0) + (taW[t] || 0);
+          html += `<td>${t === 'bronce' && !def.prices.bronce ? '—' : fmtCOPShort(p)}</td>`;
+        });
+        html += `</tr></tbody></table>`;
+      } else if (def.type === 'difficulty') {
+        const extTotalDiff = (svc.extras || []).reduce((x, e) => x + (parseInt(e.price) || 0), 0);
+        html += `<table><thead><tr><th>Nivel</th><th>Descripción</th><th>Valor</th></tr></thead><tbody>`;
+        html += `<tr><td>Alta</td><td>Diseños de gran formato, desarrollo desde cero o ilustraciones complejas.</td><td>${fmtCOPShort(def.prices.alta)}</td></tr>`;
+        html += `<tr><td>Media</td><td>Piezas editoriales, ilustraciones de complejidad media.</td><td>${fmtCOPShort(def.prices.media)}</td></tr>`;
+        html += `<tr><td>Baja</td><td>Piezas para redes sociales, adaptaciones sencillas.</td><td>${fmtCOPShort(def.prices.baja)}</td></tr>`;
+        (svc.extras || []).filter(e => e.name || e.price).forEach(extra => {
+          html += `<tr><td>${extra.name || 'Adicional'}</td><td style="color:#777">${extra.desc || ''}</td><td>${fmtCOPShort(parseInt(extra.price) || 0)}</td></tr>`;
+        });
+        const diffPrice = (def.prices[svcDiffKey] || 0) * (svc.qty || 1) + extTotalDiff;
+        html += `<tr class="price"><td colspan="2">Propuesta Económica (${svc.qty || 1} ilustración${(svc.qty || 1) > 1 ? 'es' : ''} — nivel ${TIER_LABELS[svcDiffKey]})</td><td>${fmtCOPShort(diffPrice)}</td></tr>`;
+        html += `</tbody></table>`;
+      }
+      if (def.note) html += `<p class="note-bar">${def.note}</p>`;
+      if (def.scope) html += `<p class="scope-title">Alcance del servicio</p><p class="scope-text">${def.scope}</p>`;
+      if (def.inputs) html += `<p class="scope-title">Insumos</p><p class="scope-text">${def.inputs}</p>`;
+      if (def.addl) html += `<p class="scope-title">Servicios adicionales</p><p class="scope-text">${def.addl}</p>`;
+      if (svc.customNote) html += `<p class="scope-title">Notas adicionales</p><p class="scope-text">${svc.customNote}</p>`;
+      // Hojita Bloom en footer
+      html += FOOTER_LEAF('black', 20);
+      html += `</div>`;
+    });
+
+    // Payment page
+    html += `<div class="payment-page page">`;
+    html += `<div style="margin-bottom:28pt;">${BRAND_HTML(200)}</div>`;
+    html += `<p class="label">Datos para la consignación</p>`;
+    html += `<p class="payment-text">${paymentDetail}</p>`;
+    html += `<p class="payment-text">Transferencia Bancaria<br/>DANIELA GÓMEZ SAA - CC: 1144070977<br/>Bancolombia — Cuenta de Ahorros No. 825 00000 633</p>`;
+    html += `<p class="label" style="margin-top:20pt;">Términos y condiciones</p>`;
+    html += `<p class="terms">${TERMS}</p>`;
+    html += FOOTER_LEAF('white', 20);
+    html += `</div>`;
+
+    // Si es modo impresión: agregar script de autoprint y retornar HTML
+    if (printMode) {
+      html += `<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script>`;
+      html += `</body></html>`;
+      return html;
+    }
+
+    // Modo descarga Word
+    html += `</body></html>`;
+    const safeName = (clientName || 'cliente').replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+    try {
+      // Convertir a base64 de forma segura (soporta tildes, ñ y cualquier unicode)
+      const b64 = btoa(unescape(encodeURIComponent(html)));
+      const encoded = 'data:application/vnd.ms-word;base64,' + b64;
+      const a = document.createElement('a');
+      a.href = encoded;
+      a.download = `Cotizacion_Bloom_${safeName}.doc`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 1000);
+    } catch (e) {
+      // Fallback: abrir en nueva pestaña
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+      } else {
+        alert('Permite ventanas emergentes e intenta de nuevo.');
+      }
+    }
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "step-label"
+  }, "\xA1Lista para generar!"), /*#__PURE__*/React.createElement("h2", {
+    className: "form-title"
+  }, "Tu cotizaci\xF3n est\xE1 lista"), /*#__PURE__*/React.createElement("p", {
+    className: "form-sub"
+  }, "El preview est\xE1 a la derecha. Puedes generar el PDF imprimiendo la p\xE1gina, o descargar el Word editable."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: '1px solid #2A2520',
+      borderRadius: 6,
+      padding: 20,
+      marginBottom: 20,
+      background: '#141210'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: '0.2em',
+      color: '#9A9590',
+      textTransform: 'uppercase',
+      marginBottom: 14,
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, "Resumen final"), services.map(svc => {
+    const def = CATALOG.find(c => c.id === svc.id);
+    if (!def) return null;
+    const isDiff = def.type === 'difficulty';
+    const crG = (svc.tableRows || []).filter(r => r.isCustom && !r.deleted);
+    const taG = {
+      oro: crG.reduce((s, r) => s + (r.oroPrice || 0), 0),
+      plata: crG.reduce((s, r) => s + (r.plataPrice || 0), 0),
+      bronce: crG.reduce((s, r) => s + (r.broncePrice || 0), 0)
+    };
+    const showT = svc.showTiers || Object.fromEntries(
+      ['oro','plata','bronce','clean'].filter(k => def.prices[k] != null).map(k => [k, true])
+    );
+    const visT = ['oro', 'plata', 'bronce', 'clean'].filter(t => showT[t]);
+    return /*#__PURE__*/React.createElement("div", {
+      key: svc.id,
+      style: {
+        borderBottom: '1px solid #2A2520',
+        paddingBottom: 10,
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: '#D4CFC7',
+        marginBottom: 6,
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, def.name), isDiff ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "summary-tier-badge",
+      style: {
+        marginLeft: 0
+      }
+    }, TIER_LABELS[svc.difficulty || 'media']), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        color: '#C9A46A',
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, fmtCOPShort((def.prices[svc.difficulty || 'media'] || 0) * (svc.qty || 1)))) : /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8,
+        flexWrap: 'wrap'
+      }
+    }, visT.map(t => /*#__PURE__*/React.createElement("div", {
+      key: t,
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        background: '#1A1714',
+        border: `1px solid ${t === 'oro' ? '#C9A46A' : t === 'plata' ? '#A0A8B0' : '#C08060'}`,
+        borderRadius: 4,
+        padding: '5px 9px',
+        minWidth: 85
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        letterSpacing: '0.12em',
+        color: t === 'oro' ? '#C9A46A' : t === 'plata' ? '#A0A8B0' : '#C08060',
+        textTransform: 'uppercase',
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, TIER_LABELS[t] || t.toUpperCase()), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: '#F0EBE1',
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, fmtCOPShort((def.prices[t] || 0) + (taG[t] || 0)))))));
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "summary-total"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "summary-total-label"
+  }, "Rango de propuesta"), /*#__PURE__*/React.createElement("span", {
+    className: "summary-total-price",
+    style: {
+      fontSize: 16
+    }
+  }, (() => {
+    let allPrices = [];
+    services.forEach(s => {
+      const def = CATALOG.find(c => c.id === s.id);
+      if (!def) return;
+      const crT = (s.tableRows || []).filter(r => r.isCustom && !r.deleted);
+      const taT = {
+        oro: crT.reduce((x, r) => x + (r.oroPrice || 0), 0),
+        plata: crT.reduce((x, r) => x + (r.plataPrice || 0), 0),
+        bronce: crT.reduce((x, r) => x + (r.broncePrice || 0), 0)
+      };
+      if (def.type === 'difficulty') {
+        allPrices.push((def.prices[s.difficulty || 'media'] || 0) * (s.qty || 1));
+      } else {
+        const showT = s.showTiers || {
+          oro: true,
+          plata: true,
+          bronce: true
+        };
+        ['oro', 'plata', 'bronce', 'clean'].filter(t => showT[t]).forEach(t => {
+          allPrices.push((def.prices[t] || 0) + (taT[t] || 0));
+        });
+      }
+    });
+    if (allPrices.length === 0) return '—';
+    const mn = Math.min(...allPrices),
+      mx = Math.max(...allPrices);
+    return mn === mx ? fmtCOPShort(mn) : `${fmtCOPShort(mn)} – ${fmtCOPShort(mx)}`;
+  })()))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#141210',
+      border: '1px solid #3A3530',
+      borderRadius: 5,
+      padding: '10px 14px',
+      marginBottom: 14,
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      letterSpacing: '0.15em',
+      color: '#6A6560',
+      textTransform: 'uppercase',
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, "N\xB0 Cotizaci\xF3n"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: '#C9A46A',
+      fontFamily: "'Inter',sans-serif",
+      fontWeight: 600,
+      letterSpacing: '0.05em'
+    }
+  }, quoteNumber)), /*#__PURE__*/React.createElement("button", {
+    className: "btn-gold",
+    style: {
+      marginBottom: 10
+    },
+    onClick: () => {
+      try {
+        // Genera el HTML y lo abre en una nueva pestaña usando Blob URL
+        // (más robusto que document.write — evita bloqueos por popup y CORS)
+        const html = generateWord(true);
+        const blob = new Blob([html], {
+          type: 'text/html;charset=utf-8'
+        });
+        const url = URL.createObjectURL(blob);
+        const win = window.open(url, '_blank');
+        if (!win) {
+          alert('El navegador bloqueó la ventana emergente.\nPermite pop-ups para este sitio y vuelve a intentarlo.');
+          URL.revokeObjectURL(url);
+          return;
+        }
+        // Libera la URL después de que la pestaña la consumió
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (err) {
+        console.error('Error al generar vista de impresión:', err);
+        alert('Error al generar la vista de impresión:\n' + (err.message || err));
+      }
+    }
+  }, "\uD83D\uDDA8 Abrir e Imprimir / Guardar como PDF"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-dark",
+    onClick: () => {
+      try {
+        generateWord(false);
+      } catch (err) {
+        console.error(err);
+        alert('Error al generar Word:\n' + (err.message || err));
+      }
+    }
+  }, "\uD83D\uDCC4 Descargar Word (.doc)"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-dark",
+    style: {
+      marginTop: 6,
+      borderColor: '#3A5030',
+      color: '#7AC080'
+    },
+    onClick: () => {
+      setShowModal(true);
+      setRegStatus(null);
+    }
+  }, "\uD83D\uDCCA Registrar en Google Sheets"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      fontSize: 11,
+      color: '#5A5550',
+      fontFamily: "'Inter',sans-serif",
+      lineHeight: 1.6
+    }
+  }, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: '#8A8580'
+    }
+  }, "Para PDF:"), " Se abre una ventana nueva con el documento. El navegador muestra el di\xE1logo de impresi\xF3n. Elige \"Guardar como PDF\"."), /*#__PURE__*/React.createElement("div", {
+    className: "btn-row",
+    style: {
+      marginTop: 20
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-dark",
+    onClick: onBack
+  }, "\u2190 Editar"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-dark",
+    onClick: () => window.location.reload()
+  }, "Nueva cotizaci\xF3n")), showModal && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.75)',
+      zIndex: 999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#1A1714',
+      border: '1px solid #3A3530',
+      borderRadius: 8,
+      padding: 28,
+      maxWidth: 420,
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      letterSpacing: '0.2em',
+      color: '#C9A46A',
+      textTransform: 'uppercase',
+      fontFamily: "'Inter',sans-serif",
+      marginBottom: 16
+    }
+  }, "Registrar cotizaci\xF3n"), (() => {
+    const {
+      oro,
+      plata,
+      bronce,
+      clean,
+      svcNames
+    } = calcTotals();
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: '#141210',
+        borderRadius: 5,
+        padding: 12,
+        marginBottom: 16,
+        fontSize: 11,
+        fontFamily: "'Inter',sans-serif"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: '#D4CFC7',
+        marginBottom: 4
+      }
+    }, /*#__PURE__*/React.createElement("strong", null, clientName), " \u2014 ", date), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: '#7A7570',
+        marginBottom: 8
+      }
+    }, svcNames.join(' · ')), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 10
+      }
+    }, [['PREMIUM', '#C9A46A', oro], ['ADVANCED', '#A0A8B0', plata], ['BASIC', '#C08060', bronce], ['CLEAN', '#8A9A8A', clean]].filter(([,, v]) => v > 0).map(([l, c, v]) => /*#__PURE__*/React.createElement("div", {
+      key: l,
+      style: {
+        flex: 1,
+        textAlign: 'center',
+        borderTop: `2px solid ${c}`,
+        paddingTop: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        color: c,
+        letterSpacing: '0.1em'
+      }
+    }, l), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: '#F0EBE1',
+        marginTop: 2
+      }
+    }, fmtCOPShort(v))))));
+  })(), /*#__PURE__*/React.createElement("div", {
+    className: "field",
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 10,
+      letterSpacing: '0.15em',
+      color: '#9A9590',
+      textTransform: 'uppercase',
+      fontFamily: "'Inter',sans-serif",
+      display: 'block',
+      marginBottom: 6
+    }
+  }, "Estado"), /*#__PURE__*/React.createElement("select", {
+    value: estado,
+    onChange: e => setEstado(e.target.value),
+    style: {
+      width: '100%',
+      background: '#141210',
+      border: '1px solid #3A3530',
+      color: '#F0EBE1',
+      padding: '8px 12px',
+      borderRadius: 4,
+      fontFamily: "'Inter',sans-serif",
+      fontSize: 12,
+      outline: 'none'
+    }
+  }, ['Enviada', 'En revisión', 'Aprobada', 'En espera', 'Rechazada', 'Archivada'].map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s)))), /*#__PURE__*/React.createElement("div", {
+    className: "field",
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: {
+      fontSize: 10,
+      letterSpacing: '0.15em',
+      color: '#9A9590',
+      textTransform: 'uppercase',
+      fontFamily: "'Inter',sans-serif",
+      display: 'block',
+      marginBottom: 6
+    }
+  }, "Nota (opcional)"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: notaReg,
+    onChange: e => setNotaReg(e.target.value),
+    placeholder: "Ej: Cliente pidi\xF3 ajuste de precio...",
+    style: {
+      width: '100%',
+      background: '#141210',
+      border: '1px solid #3A3530',
+      color: '#F0EBE1',
+      padding: '8px 12px',
+      borderRadius: 4,
+      fontFamily: "'Inter',sans-serif",
+      fontSize: 12,
+      outline: 'none'
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 16,
+      borderTop: '1px solid #2A2520',
+      paddingTop: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: sheetsUrl ? '#7AC080' : '#E07050',
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, sheetsUrl ? '✓ Google Sheets conectado' : '⚠ Sin URL configurada'), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowUrlConfig(v => !v),
+    style: {
+      background: 'none',
+      border: '1px solid #3A3530',
+      color: '#7A7570',
+      borderRadius: 3,
+      cursor: 'pointer',
+      fontSize: 10,
+      padding: '3px 8px',
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, showUrlConfig ? 'Ocultar' : 'Configurar URL')), showUrlConfig && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    value: sheetsUrlTmp,
+    onChange: e => setSheetsUrlTmp(e.target.value),
+    placeholder: "https://script.google.com/macros/s/...",
+    style: {
+      flex: 1,
+      background: '#141210',
+      border: '1px solid #3A3530',
+      color: '#9A9590',
+      padding: '6px 10px',
+      borderRadius: 4,
+      fontSize: 10,
+      fontFamily: "'Inter',sans-serif",
+      outline: 'none'
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      localStorage.setItem(SHEETS_KEY, sheetsUrlTmp);
+      setSheetsUrl(sheetsUrlTmp);
+      setShowUrlConfig(false);
+    },
+    style: {
+      background: '#2A3520',
+      border: '1px solid #4A5540',
+      color: '#7AC080',
+      borderRadius: 4,
+      cursor: 'pointer',
+      fontSize: 10,
+      padding: '6px 10px',
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, "Guardar"))), regStatus === 'ok' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      color: '#7AC080',
+      fontFamily: "'Inter',sans-serif",
+      fontSize: 13,
+      marginBottom: 12
+    }
+  }, "\u2713 Registrado correctamente"), regStatus === 'error' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#E07050',
+      fontFamily: "'Inter',sans-serif",
+      fontSize: 11,
+      marginBottom: 12
+    }
+  }, "Error al conectar. Verifica la URL del script."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowModal(false),
+    style: {
+      flex: 1,
+      background: 'none',
+      border: '1px solid #3A3530',
+      color: '#7A7570',
+      padding: '10px',
+      borderRadius: 4,
+      cursor: 'pointer',
+      fontFamily: "'Inter',sans-serif",
+      fontSize: 12
+    }
+  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
+    onClick: registrar,
+    disabled: regStatus === 'loading',
+    style: {
+      flex: 2,
+      background: '#2A3520',
+      border: '1px solid #4A5540',
+      color: '#7AC080',
+      padding: '10px',
+      borderRadius: 4,
+      cursor: 'pointer',
+      fontFamily: "'Inter',sans-serif",
+      fontSize: 12,
+      fontWeight: 600
+    }
+  }, regStatus === 'loading' ? 'Registrando…' : '📊 Guardar en Sheets')))));
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// APP PRINCIPAL
+// ──────────────────────────────────────────────────────────────────────────────
+function App() {
+  const [step, setStep] = useState(1);
+  const [clientName, setClientName] = useState('');
+  const [date, setDate] = useState(getToday());
+  const [elaboradoPor, setElaboradoPor] = useState('');
+  const [services, setServices] = useState([]);
+  const [quoteNumber, setQuoteNumber] = useState('');
+  const steps = [1, 2, 3, 4];
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "app-layout no-print",
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '420px 1fr',
+      height: '100vh'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "app-left"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "bloom-logo"
+  }, "B L O O M  D E S I G N  S T U D I O"), /*#__PURE__*/React.createElement("div", {
+    className: "step-bar"
+  }, steps.map(s => /*#__PURE__*/React.createElement("div", {
+    key: s,
+    className: `step-dot ${s < step ? 'done' : s === step ? 'active' : ''}`
+  }))), step === 1 && /*#__PURE__*/React.createElement(Step1Client, {
+    clientName: clientName,
+    setClientName: setClientName,
+    date: date,
+    setDate: setDate,
+    elaboradoPor: elaboradoPor,
+    setElaboradoPor: setElaboradoPor,
+    onNext: () => setStep(2)
+  }), step === 2 && /*#__PURE__*/React.createElement(Step2Services, {
+    services: services,
+    setServices: setServices,
+    onBack: () => setStep(1),
+    onNext: () => setStep(3)
+  }), step === 3 && /*#__PURE__*/React.createElement(Step3Config, {
+    services: services,
+    setServices: setServices,
+    onBack: () => setStep(2),
+    onGenerate: () => {
+      setQuoteNumber(genQuoteNumber(clientName, date));
+      setStep(4);
+    }
+  }), step === 4 && /*#__PURE__*/React.createElement(StepGenerate, {
+    clientName: clientName,
+    date: date,
+    elaboradoPor: elaboradoPor,
+    services: services,
+    quoteNumber: quoteNumber,
+    onBack: () => setStep(3)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "app-right"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      letterSpacing: '0.18em',
+      color: '#5A5550',
+      textTransform: 'uppercase',
+      marginBottom: 14,
+      fontFamily: "'Inter',sans-serif"
+    }
+  }, "Vista previa del documento"), /*#__PURE__*/React.createElement(DocumentPreview, {
+    clientName: clientName,
+    date: date,
+    services: services
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "print-doc"
+  }, /*#__PURE__*/React.createElement(DocumentPreview, {
+    clientName: clientName,
+    date: date,
+    services: services
+  })));
+}
+ReactDOM.render(/*#__PURE__*/React.createElement(App, null), document.getElementById('root'));
+</script>
+</body>
+</html>

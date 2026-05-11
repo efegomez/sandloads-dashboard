@@ -257,8 +257,10 @@ function render(DRIVERS){
     return`<div class='t-row ${rowClass(d)}'><div class='t-accent' style='background:${pal.accent}'></div><div class='t-name'><div class='${nameClass(d)}'>${d.name}</div><div class='t-hour' style='color:${pal.accent}'>${label}</div></div><div class='t-count' style='color:${pal.accent}'>${d.photos}<span style='color:#666;font-weight:400;margin:0 1px'>/</span>${d.qty}</div><div class='t-bar'>${bubbles}</div></div>`;
   }
 
-  html+=`<div class='section-lbl'><div class='slbl-dot' style='background:#00E676'></div><span style='color:#00E676'>PB to Venom 12</span></div>`;
-  pb.forEach(d=>{html+=row(d);});
+  if(pb.length){
+    html+=`<div class='section-lbl'><div class='slbl-dot' style='background:#00E676'></div><span style='color:#00E676'>PB to Venom 12</span></div>`;
+    pb.forEach(d=>{html+=row(d);});
+  }
   if(crane.length){
     html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#9aa0a8'></div><span style='color:#9aa0a8'>Crane to Venom 12</span></div>`;
     crane.forEach(d=>{html+=row(d);});

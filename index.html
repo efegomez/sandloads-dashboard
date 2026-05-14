@@ -162,7 +162,7 @@ function parseRows(rowData){
 
     const nameFull=vals[rutaIdx-2];
     const truck=vals[rutaIdx-1];
-    if(!nameFull) continue;
+    if(!nameFull || /^\d/.test(nameFull)) continue;
 
     const qty=parseInt(vals[rutaIdx+1])||5;
     const stRaw=(vals[rutaIdx+2]||"").toLowerCase().trim();

@@ -32,6 +32,8 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .t-row.row-idle{background:#1a1c20}
 .t-row.row-no-show{background:#1f0a12}
 .t-row.row-broken{background:#1f0a12}
+.t-row.row-lamesa{background:#160d22}
+.t-row.row-done-lamesa{background:#200f35}
 .t-accent{width:3px;height:100%;flex-shrink:0}
 .t-name{width:120px;flex-shrink:0;padding:0 8px 0 9px}
 .t-dname{font-size:13px;font-weight:500;color:#e8e8e8}
@@ -51,6 +53,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .idle-badge{background:#161a1e;color:#3a4a5a;border-color:#2a3540}
 .noshow-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .broken-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
+.lamesa-badge{background:#160d22;color:#CE93D8;border-color:#7B1FA2}
 .tick-wrap{display:flex;height:18px;margin-bottom:3px}
 .tick-spc{width:123px;flex-shrink:0}
 .tick-bar-t{flex:1;position:relative}
@@ -85,6 +88,7 @@ const BORLAND = {accent:"#4FC3F7", dim:"#0277bd", badgeCls:"borland-badge"};
 const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
 const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
+const LAMESA = {accent:"#CE93D8", dim:"#7B1FA2", badgeCls:"lamesa-badge"};
 
 function isBroken(d){return d.status==="ROTO"||d.status==="REPAIRING";}
 function isNoShow(d){return d.status==="no contesta";}
@@ -96,6 +100,7 @@ function palette(d){
   if(d.type==="CRANE")   return CRANE;
   if(d.type==="VISTA")   return VISTA;
   if(d.type==="BORLAND") return BORLAND;
+  if(d.type==="LAMESA")  return LAMESA;
   return PB;
 }
 function rowClass(d){
@@ -103,6 +108,7 @@ function rowClass(d){
     if(d.type==="CRANE")   return "row-done-crane";
     if(d.type==="VISTA")   return "row-done-vista";
     if(d.type==="BORLAND") return "row-done-borland";
+    if(d.type==="LAMESA")  return "row-done-lamesa";
     return "row-done";
   }
   if(isBroken(d)) return "row-broken";
@@ -111,6 +117,7 @@ function rowClass(d){
   if(d.type==="CRANE")   return "row-active-crane";
   if(d.type==="VISTA")   return "row-vista";
   if(d.type==="BORLAND") return "row-borland";
+  if(d.type==="LAMESA")  return "row-lamesa";
   return "row-active";
 }
 function nameClass(d){
@@ -123,20 +130,26 @@ function fmtH(h){return h===0?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm";}
 const MIN_H=0,MAX_H=20;
 function pct(h){return((h-MIN_H)/(MAX_H-MIN_H)*100).toFixed(2);}
 
+const LAMESA_ROSTER=[
+  {name:"Ernesto", truck:"2632"},
+  {name:"Yosvani", truck:"88"},
+  {name:"Yordis",  truck:"2947"},
+];
+
 // Fallback: datos de muestra
 const SAMPLE=[
-  {name:"Ernesto",  truck:"2632",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Ernesto",  truck:"2632",startH:0, qty:4,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Pedro",    truck:"2026",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Yanquiel", truck:"122", startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Miguel",   truck:"959", startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
-  {name:"Yosvani",  truck:"88",  startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Yosvani",  truck:"88",  startH:0, qty:5,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Jesus",    truck:"0385",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Doanys",   truck:"804", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Yasiel",   truck:"960", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Felix",    truck:"24",  startH:11,qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Santiago", truck:"961", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Leandro",  truck:"206", startH:4, qty:5,photos:0,status:"ACTIVO",type:"CRANE"},
-  {name:"Yordis",   truck:"2947",startH:9, qty:5,photos:0,status:"ACTIVO",type:"VISTA"},
+  {name:"Yordis",   truck:"2947",startH:0, qty:6,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Juan",     truck:"T27", startH:15,qty:5,photos:0,status:"ACTIVO",type:"VISTA"},
 ];
 
@@ -151,11 +164,11 @@ function parseRows(rows){
   const drivers=[];
 
   for(const cells of rows){
-    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|venom|borland/i.test(v||""));
+    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|venom|borland|la\s*mesa/i.test(v||""));
     if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":"PB";
+    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":/la\s*mesa/i.test(ruta)?"LAMESA":"PB";
 
     // Col layout: [... name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx) ...]
     const nameFull=(cells[rutaIdx-2]||"").trim();
@@ -207,7 +220,14 @@ async function loadData(){
   try{
     const rows=await fetchAllRows();
     const drivers=parseRows(rows);
-    if(drivers.length===0){
+    // Always inject La Mesa roster — missing members show as pending
+    const lamesaTrucks=new Set(drivers.filter(d=>d.type==="LAMESA").map(d=>d.truck));
+    for(const r of LAMESA_ROSTER){
+      if(!lamesaTrucks.has(r.truck)){
+        drivers.push({name:r.name,truck:r.truck,startH:0,qty:0,photos:0,status:"ACTIVO",type:"LAMESA"});
+      }
+    }
+    if(drivers.filter(d=>d.type!=="LAMESA").length===0){
       document.getElementById("msg-box").innerHTML=
         `<div class="info-msg">Pestaña "${tabName}" sin choferes — mostrando datos de sesión.</div>`;
       render(SAMPLE);
@@ -230,6 +250,7 @@ function render(DRIVERS){
   const crane=DRIVERS.filter(d=>d.type==="CRANE");
   const vista=DRIVERS.filter(d=>d.type==="VISTA");
   const borland=DRIVERS.filter(d=>d.type==="BORLAND");
+  const lamesa=DRIVERS.filter(d=>d.type==="LAMESA");
 
   let html="<div class='tick-wrap'><div class='tick-spc'></div><div class='tick-bar-t'>";
   for(let h=MIN_H;h<=MAX_H;h+=2){
@@ -270,6 +291,10 @@ function render(DRIVERS){
   if(borland.length){
     html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#4FC3F7'></div><span style='color:#4FC3F7'>Borland to Venom</span></div>`;
     borland.forEach(d=>{html+=row(d);});
+  }
+  if(lamesa.length){
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#CE93D8'></div><span style='color:#CE93D8'>La Mesa - GroupMe</span></div>`;
+    lamesa.forEach(d=>{html+=row(d);});
   }
   document.getElementById("timeline").innerHTML=html;
 

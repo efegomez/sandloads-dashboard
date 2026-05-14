@@ -48,6 +48,9 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .idle-badge{background:#161a1e;color:#3a4a5a;border-color:#2a3540}
 .noshow-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .broken-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
+.lamesa-badge{background:#150e22;color:#A78BFA;border-color:#6d28d9}
+.t-row.row-lamesa{background:#150e22}
+.t-row.row-done-lamesa{background:#1e1535}
 .tick-wrap{display:flex;height:18px;margin-bottom:3px}
 .tick-spc{width:123px;flex-shrink:0}
 .tick-bar-t{flex:1;position:relative}
@@ -80,7 +83,8 @@ const CRANE  = {accent:"#9aa0a8", dim:"#4a5058", badgeCls:"crane-badge"};
 const VISTA  = {accent:"#EF9F27", dim:"#a06800", badgeCls:"vista-badge"};
 const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
-const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
+const BROKEN  = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
+const LAMESA  = {accent:"#A78BFA", dim:"#6d28d9", badgeCls:"lamesa-badge"};
 
 function isBroken(d){return d.status==="ROTO"||d.status==="REPAIRING";}
 function isNoShow(d){return d.status==="no contesta";}
@@ -89,21 +93,24 @@ function palette(d){
   if(isBroken(d)) return BROKEN;
   if(isNoShow(d)) return NOSHOW;
   if(isIdle(d))   return IDLE;
-  if(d.type==="CRANE") return CRANE;
-  if(d.type==="VISTA") return VISTA;
+  if(d.type==="CRANE")  return CRANE;
+  if(d.type==="VISTA")  return VISTA;
+  if(d.type==="LAMESA") return LAMESA;
   return PB;
 }
 function rowClass(d){
   if(d.photos>=d.qty&&d.qty>0){
-    if(d.type==="CRANE") return "row-done-crane";
-    if(d.type==="VISTA") return "row-done-vista";
+    if(d.type==="CRANE")  return "row-done-crane";
+    if(d.type==="VISTA")  return "row-done-vista";
+    if(d.type==="LAMESA") return "row-done-lamesa";
     return "row-done";
   }
   if(isBroken(d)) return "row-broken";
   if(isNoShow(d)) return "row-no-show";
   if(isIdle(d))   return "row-idle";
-  if(d.type==="CRANE") return "row-active-crane";
-  if(d.type==="VISTA") return "row-vista";
+  if(d.type==="CRANE")  return "row-active-crane";
+  if(d.type==="VISTA")  return "row-vista";
+  if(d.type==="LAMESA") return "row-lamesa";
   return "row-active";
 }
 function nameClass(d){
@@ -154,11 +161,11 @@ function parseRows(rowData){
     const cells=row.values||[];
     const vals=cells.map(c=>(c.formattedValue||"").trim());
 
-    const rutaIdx=vals.findIndex(v=>/nash|vista|prefill|borland/i.test(v));
+    const rutaIdx=vals.findIndex(v=>/nash|vista|prefill|borland|la\s*mesa/i.test(v));
     if(rutaIdx<2) continue;
 
     const ruta=vals[rutaIdx];
-    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":"PB";
+    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":/la\s*mesa/i.test(ruta)?"LAMESA":"PB";
 
     const nameFull=vals[rutaIdx-2];
     const truck=vals[rutaIdx-1];
@@ -175,16 +182,16 @@ function parseRows(rowData){
     }).length;
 
     const hm=ruta.match(/(\d{1,2})\s*(am|pm)/i);
-    let startH=0;
+    let startH=0, hasTime=false;
     if(hm){
       let h=parseInt(hm[1]);
       const ap=hm[2].toLowerCase();
       if(ap==="pm"&&h!==12) h+=12;
       if(ap==="am"&&h===12) h=0;
-      startH=h;
+      startH=h; hasTime=true;
     }
 
-    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,qty,photos,status,type});
+    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,hasTime,qty,photos,status,type});
   }
   return drivers;
 }
@@ -232,6 +239,7 @@ function render(DRIVERS){
   const crane=DRIVERS.filter(d=>d.type==="CRANE");
   const vista=DRIVERS.filter(d=>d.type==="VISTA");
   const borland=DRIVERS.filter(d=>d.type==="BORLAND");
+  const lamesa=DRIVERS.filter(d=>d.type==="LAMESA");
 
   let html="<div class='tick-wrap'><div class='tick-spc'></div><div class='tick-bar-t'>";
   for(let h=MIN_H;h<=MAX_H;h+=2){
@@ -241,19 +249,27 @@ function render(DRIVERS){
 
   function row(d){
     const pal=palette(d);
-    const startP=parseFloat(pct(d.startH));
     const bSize=18;
-    const minSpan=25;
-    const naturalSpan=parseFloat(pct(d.startH+d.qty*1.5+0.5))-startP;
-    const span=Math.max(naturalSpan,minSpan);
-    const cappedStart=Math.min(startP, 98-span-8);
     let bubbles="";
-    for(let i=0;i<d.qty;i++){
-      const done=i<d.photos;
-      const lp=cappedStart+span*(i+0.5)/d.qty;
-      bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
+    if(d.hasTime){
+      const startP=parseFloat(pct(d.startH));
+      const naturalSpan=parseFloat(pct(d.startH+d.qty*1.5+0.5))-startP;
+      const span=Math.max(naturalSpan,25);
+      const cappedStart=Math.min(startP, 98-span-8);
+      for(let i=0;i<d.qty;i++){
+        const done=i<d.photos;
+        const lp=cappedStart+span*(i+0.5)/d.qty;
+        bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
+      }
+    } else {
+      for(let i=0;i<d.qty;i++){
+        const done=i<d.photos;
+        const lp=5+90*(i+0.5)/d.qty;
+        bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
+      }
     }
-    const label=d.truck?fmtH(d.startH)+" · #"+d.truck:fmtH(d.startH);
+    const timeStr=d.hasTime?fmtH(d.startH):"GroupMe";
+    const label=d.truck?timeStr+" · #"+d.truck:timeStr;
     return`<div class='t-row ${rowClass(d)}'><div class='t-accent' style='background:${pal.accent}'></div><div class='t-name'><div class='${nameClass(d)}'>${d.name}</div><div class='t-hour' style='color:${pal.accent}'>${label}</div></div><div class='t-count' style='color:${pal.accent}'>${d.photos}<span style='color:#666;font-weight:400;margin:0 1px'>/</span>${d.qty}</div><div class='t-bar'>${bubbles}</div></div>`;
   }
 
@@ -272,6 +288,10 @@ function render(DRIVERS){
   if(borland.length){
     html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#29B6F6'></div><span style='color:#29B6F6'>Borland to Venom</span></div>`;
     borland.forEach(d=>{html+=row(d);});
+  }
+  if(lamesa.length){
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#A78BFA'></div><span style='color:#A78BFA'>LA MESA - GROUPME</span></div>`;
+    lamesa.forEach(d=>{html+=row(d);});
   }
   document.getElementById("timeline").innerHTML=html;
 

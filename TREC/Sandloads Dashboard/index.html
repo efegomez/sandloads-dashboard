@@ -32,8 +32,6 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .t-row.row-idle{background:#1a1c20}
 .t-row.row-no-show{background:#1f0a12}
 .t-row.row-broken{background:#1f0a12}
-.t-row.row-lamesa{background:#160d22}
-.t-row.row-done-lamesa{background:#200f35}
 .t-accent{width:3px;height:100%;flex-shrink:0}
 .t-name{width:120px;flex-shrink:0;padding:0 8px 0 9px}
 .t-dname{font-size:13px;font-weight:500;color:#e8e8e8}
@@ -53,30 +51,12 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .idle-badge{background:#161a1e;color:#3a4a5a;border-color:#2a3540}
 .noshow-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .broken-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
-.lamesa-badge{background:#160d22;color:#CE93D8;border-color:#7B1FA2}
 .tick-wrap{display:flex;height:18px;margin-bottom:3px}
 .tick-spc{width:123px;flex-shrink:0}
 .tick-bar-t{flex:1;position:relative}
 .tick-line{position:absolute;top:0;height:100%;border-left:0.5px solid #1e2024}
 .tick-lbl{position:absolute;top:2px;font-size:9px;color:#666;transform:translateX(-50%);white-space:nowrap}
 .info-msg{color:#9aa0a8;font-size:11px;padding:8px 12px;background:#1a1c20;border-radius:8px;border:0.5px solid #2e3035;margin-bottom:1rem}
-.tabs{display:flex;gap:4px;margin-bottom:1rem}
-.tab-btn{font-size:12px;padding:6px 16px;border-radius:8px;border:0.5px solid #2a2a2a;background:#1a1c20;color:#555;cursor:pointer;font-weight:500;transition:all .15s}
-.tab-btn:hover{color:#ccc}
-.tab-btn.active-main{color:#00E676;border-color:#00E676;background:#0a1f12}
-.tab-btn.active-lm{color:#CE93D8;border-color:#CE93D8;background:#160d22}
-.lm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:4px}
-.lm-card{background:#160d22;border-radius:10px;padding:12px 14px;border:0.5px solid #2e1a40}
-.lm-card.lm-done{background:#200f35;border-color:#7B1FA2}
-.lm-card.lm-idle{background:#1a1c20;border-color:#2e3035}
-.lm-card.lm-broken{background:#1f0a12;border-color:#b5004c}
-.lm-name{font-size:14px;font-weight:500;color:#e8e8e8;margin-bottom:1px}
-.lm-truck{font-size:11px;color:#7B1FA2;margin-bottom:10px}
-.lm-count{font-size:34px;font-weight:600;color:#CE93D8;line-height:1}
-.lm-count-lbl{font-size:10px;color:#555;margin-top:2px;margin-bottom:8px}
-.lm-dots{display:flex;flex-wrap:wrap;gap:4px;min-height:12px;margin-bottom:8px}
-.lm-dot{width:9px;height:9px;border-radius:50%;background:#CE93D8}
-.lm-badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:6px;border:0.5px solid;display:inline-block}
 </style>
 </head>
 <body>
@@ -88,19 +68,9 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
     </div>
     <button class="refbtn" onclick="loadData()">Refrescar</button>
   </div>
-  <div class="tabs">
-    <button class="tab-btn active-main" id="tab-main" onclick="switchTab('main')">Sandloads</button>
-    <button class="tab-btn" id="tab-lm" onclick="switchTab('lamesa')">La Mesa</button>
-  </div>
   <div id="msg-box"></div>
-  <div id="main-view">
-    <div class="stats" id="stats"></div>
-    <div id="timeline"></div>
-  </div>
-  <div id="lamesa-view" style="display:none">
-    <div class="stats" id="lm-stats"></div>
-    <div id="lm-grid"></div>
-  </div>
+  <div class="stats" id="stats"></div>
+  <div id="timeline"></div>
 </div>
 
 <script>
@@ -115,7 +85,6 @@ const BORLAND = {accent:"#4FC3F7", dim:"#0277bd", badgeCls:"borland-badge"};
 const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
 const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
-const LAMESA = {accent:"#CE93D8", dim:"#7B1FA2", badgeCls:"lamesa-badge"};
 
 function isBroken(d){return d.status==="ROTO"||d.status==="REPAIRING";}
 function isNoShow(d){return d.status==="no contesta";}
@@ -127,7 +96,6 @@ function palette(d){
   if(d.type==="CRANE")   return CRANE;
   if(d.type==="VISTA")   return VISTA;
   if(d.type==="BORLAND") return BORLAND;
-  if(d.type==="LAMESA")  return LAMESA;
   return PB;
 }
 function rowClass(d){
@@ -135,7 +103,6 @@ function rowClass(d){
     if(d.type==="CRANE")   return "row-done-crane";
     if(d.type==="VISTA")   return "row-done-vista";
     if(d.type==="BORLAND") return "row-done-borland";
-    if(d.type==="LAMESA")  return "row-done-lamesa";
     return "row-done";
   }
   if(isBroken(d)) return "row-broken";
@@ -144,7 +111,6 @@ function rowClass(d){
   if(d.type==="CRANE")   return "row-active-crane";
   if(d.type==="VISTA")   return "row-vista";
   if(d.type==="BORLAND") return "row-borland";
-  if(d.type==="LAMESA")  return "row-lamesa";
   return "row-active";
 }
 function nameClass(d){
@@ -157,32 +123,17 @@ function fmtH(h){return h===0?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm";}
 const MIN_H=0,MAX_H=20;
 function pct(h){return((h-MIN_H)/(MAX_H-MIN_H)*100).toFixed(2);}
 
-const LAMESA_ROSTER=[
-  {name:"Ernesto", truck:"2632"},
-  {name:"Yosvani", truck:"88"},
-  {name:"Yordis",  truck:"2947"},
-  {name:"Yoel",    truck:"41"},
-  {name:"Bryan",   truck:"23"},
-  {name:"Nelson",  truck:"1"},
-  {name:"Enrique", truck:"11"},
-  {name:"Jesus",   truck:"385"},
-  {name:"Arley",   truck:"207"},
-];
-
 // Fallback: datos de muestra
 const SAMPLE=[
-  {name:"Ernesto",  truck:"2632",startH:0, qty:4,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Pedro",    truck:"2026",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Yanquiel", truck:"122", startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Miguel",   truck:"959", startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
-  {name:"Yosvani",  truck:"88",  startH:0, qty:5,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Jesus",    truck:"0385",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Doanys",   truck:"804", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Yasiel",   truck:"960", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Felix",    truck:"24",  startH:11,qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Santiago", truck:"961", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Leandro",  truck:"206", startH:4, qty:5,photos:0,status:"ACTIVO",type:"CRANE"},
-  {name:"Yordis",   truck:"2947",startH:0, qty:6,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Juan",     truck:"T27", startH:15,qty:5,photos:0,status:"ACTIVO",type:"VISTA"},
 ];
 
@@ -197,11 +148,11 @@ function parseRows(rows){
   const drivers=[];
 
   for(const cells of rows){
-    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|venom|borland|la\s*mesa/i.test(v||""));
+    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|venom|borland/i.test(v||""));
     if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":/la\s*mesa/i.test(ruta)?"LAMESA":"PB";
+    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":"PB";
 
     // Col layout: [... name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx) ...]
     const nameFull=(cells[rutaIdx-2]||"").trim();
@@ -253,14 +204,7 @@ async function loadData(){
   try{
     const rows=await fetchAllRows();
     const drivers=parseRows(rows);
-    // Always inject La Mesa roster — missing members show as pending
-    const lamesaTrucks=new Set(drivers.filter(d=>d.type==="LAMESA").map(d=>d.truck));
-    for(const r of LAMESA_ROSTER){
-      if(!lamesaTrucks.has(r.truck)){
-        drivers.push({name:r.name,truck:r.truck,startH:0,qty:0,photos:0,status:"ACTIVO",type:"LAMESA"});
-      }
-    }
-    if(drivers.filter(d=>d.type!=="LAMESA").length===0){
+    if(drivers.length===0){
       document.getElementById("msg-box").innerHTML=
         `<div class="info-msg">Pestaña "${tabName}" sin choferes — mostrando datos de sesión.</div>`;
       render(SAMPLE);
@@ -283,7 +227,6 @@ function render(DRIVERS){
   const crane=DRIVERS.filter(d=>d.type==="CRANE");
   const vista=DRIVERS.filter(d=>d.type==="VISTA");
   const borland=DRIVERS.filter(d=>d.type==="BORLAND");
-  const lamesa=DRIVERS.filter(d=>d.type==="LAMESA");
 
   let html="<div class='tick-wrap'><div class='tick-spc'></div><div class='tick-bar-t'>";
   for(let h=MIN_H;h<=MAX_H;h+=2){
@@ -325,12 +268,7 @@ function render(DRIVERS){
     html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#4FC3F7'></div><span style='color:#4FC3F7'>Borland to Venom</span></div>`;
     borland.forEach(d=>{html+=row(d);});
   }
-  if(lamesa.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#CE93D8'></div><span style='color:#CE93D8'>La Mesa - GroupMe</span></div>`;
-    lamesa.forEach(d=>{html+=row(d);});
-  }
   document.getElementById("timeline").innerHTML=html;
-  renderLaMesa(DRIVERS);
 
   const tot=DRIVERS.reduce((s,d)=>s+d.photos,0);
   const qty=DRIVERS.reduce((s,d)=>s+d.qty,0);
@@ -347,41 +285,6 @@ function render(DRIVERS){
     <div class='stat'><div class='stat-lbl'>Faltan</div><div class='stat-val'>${qty-tot}</div></div>
     <div class='stat'><div class='stat-lbl'>Choferes listos</div><div class='stat-val'>${doneD}/${totalD}</div><div class='stat-sub' style='color:#888'>${pctD}% completaron</div></div>
   `;
-}
-
-let activeTab='main';
-function switchTab(tab){
-  activeTab=tab;
-  document.getElementById('tab-main').className='tab-btn'+(tab==='main'?' active-main':'');
-  document.getElementById('tab-lm').className='tab-btn'+(tab==='lamesa'?' active-lm':'');
-  document.getElementById('main-view').style.display=tab==='main'?'':'none';
-  document.getElementById('lamesa-view').style.display=tab==='lamesa'?'':'none';
-}
-
-function renderLaMesa(DRIVERS){
-  const lm=DRIVERS.filter(d=>d.type==="LAMESA");
-  const tot=lm.reduce((s,d)=>s+d.photos,0);
-  const active=lm.filter(d=>d.photos>0).length;
-  document.getElementById('lm-stats').innerHTML=`
-    <div class='stat'><div class='stat-lbl'>Cargas La Mesa</div><div class='stat-val' style='color:#CE93D8'>${tot}</div></div>
-    <div class='stat'><div class='stat-lbl'>Activos</div><div class='stat-val' style='color:#CE93D8'>${active}</div></div>
-    <div class='stat'><div class='stat-lbl'>En roster</div><div class='stat-val' style='color:#CE93D8'>${lm.length}</div></div>
-  `;
-  let html="<div class='lm-grid'>";
-  for(const d of lm){
-    const broken=isBroken(d)||isNoShow(d);
-    const idle=d.photos===0&&!broken;
-    const cardCls='lm-card'+(d.photos>0&&!broken?' lm-done':idle?' lm-idle':broken?' lm-broken':'');
-    const dots=Array.from({length:d.photos},()=>`<div class='lm-dot'></div>`).join('');
-    let badge;
-    if(isBroken(d)) badge=`<span class='lm-badge' style='color:#FF4081;border-color:#b5004c;background:#1f0a12'>ROTO</span>`;
-    else if(isNoShow(d)) badge=`<span class='lm-badge' style='color:#FF4081;border-color:#b5004c;background:#1f0a12'>N/C</span>`;
-    else if(d.photos===0) badge=`<span class='lm-badge' style='color:#3a4a5a;border-color:#2a3540;background:#1a1c20'>pendiente</span>`;
-    else badge=`<span class='lm-badge' style='color:#CE93D8;border-color:#7B1FA2;background:#160d22'>ACTIVO</span>`;
-    html+=`<div class='${cardCls}'><div class='lm-name'>${d.name}</div><div class='lm-truck'>#${d.truck}</div><div class='lm-count'>${d.photos}</div><div class='lm-count-lbl'>cargas</div><div class='lm-dots'>${dots}</div>${badge}</div>`;
-  }
-  html+="</div>";
-  document.getElementById('lm-grid').innerHTML=html;
 }
 
 loadData();

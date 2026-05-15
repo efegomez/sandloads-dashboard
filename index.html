@@ -24,12 +24,16 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .t-row.row-done{background:#0a1f12}
 .t-row.row-done-crane{background:#1c1e22}
 .t-row.row-done-vista{background:#1e1600}
+.t-row.row-done-borland{background:#0d1a2e}
 .t-row.row-active{background:#151a17}
 .t-row.row-active-crane{background:#18191d}
 .t-row.row-vista{background:#1c1800}
+.t-row.row-borland{background:#0a1520}
 .t-row.row-idle{background:#1a1c20}
 .t-row.row-no-show{background:#1f0a12}
 .t-row.row-broken{background:#1f0a12}
+.t-row.row-lamesa{background:#160d22}
+.t-row.row-done-lamesa{background:#200f35}
 .t-accent{width:3px;height:100%;flex-shrink:0}
 .t-name{width:120px;flex-shrink:0;padding:0 8px 0 9px}
 .t-dname{font-size:13px;font-weight:500;color:#e8e8e8}
@@ -45,18 +49,34 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .pb-badge{background:#0a1f12;color:#00E676;border-color:#00a152}
 .crane-badge{background:#1c1e22;color:#9aa0a8;border-color:#4a5058}
 .vista-badge{background:#1e1500;color:#EF9F27;border-color:#a06800}
+.borland-badge{background:#0d1a2e;color:#4FC3F7;border-color:#0277bd}
 .idle-badge{background:#161a1e;color:#3a4a5a;border-color:#2a3540}
 .noshow-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .broken-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
-.lamesa-badge{background:#150e22;color:#A78BFA;border-color:#6d28d9}
-.t-row.row-lamesa{background:#150e22}
-.t-row.row-done-lamesa{background:#1e1535}
+.lamesa-badge{background:#160d22;color:#CE93D8;border-color:#7B1FA2}
 .tick-wrap{display:flex;height:18px;margin-bottom:3px}
 .tick-spc{width:123px;flex-shrink:0}
 .tick-bar-t{flex:1;position:relative}
 .tick-line{position:absolute;top:0;height:100%;border-left:0.5px solid #1e2024}
 .tick-lbl{position:absolute;top:2px;font-size:9px;color:#666;transform:translateX(-50%);white-space:nowrap}
 .info-msg{color:#9aa0a8;font-size:11px;padding:8px 12px;background:#1a1c20;border-radius:8px;border:0.5px solid #2e3035;margin-bottom:1rem}
+.tabs{display:flex;gap:4px;margin-bottom:1rem}
+.tab-btn{font-size:12px;padding:6px 16px;border-radius:8px;border:0.5px solid #2a2a2a;background:#1a1c20;color:#555;cursor:pointer;font-weight:500;transition:all .15s}
+.tab-btn:hover{color:#ccc}
+.tab-btn.active-main{color:#00E676;border-color:#00E676;background:#0a1f12}
+.tab-btn.active-lm{color:#CE93D8;border-color:#CE93D8;background:#160d22}
+.lm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:4px}
+.lm-card{background:#160d22;border-radius:10px;padding:12px 14px;border:0.5px solid #2e1a40}
+.lm-card.lm-done{background:#200f35;border-color:#7B1FA2}
+.lm-card.lm-idle{background:#1a1c20;border-color:#2e3035}
+.lm-card.lm-broken{background:#1f0a12;border-color:#b5004c}
+.lm-name{font-size:14px;font-weight:500;color:#e8e8e8;margin-bottom:1px}
+.lm-truck{font-size:11px;color:#7B1FA2;margin-bottom:10px}
+.lm-count{font-size:34px;font-weight:600;color:#CE93D8;line-height:1}
+.lm-count-lbl{font-size:10px;color:#555;margin-top:2px;margin-bottom:8px}
+.lm-dots{display:flex;flex-wrap:wrap;gap:4px;min-height:12px;margin-bottom:8px}
+.lm-dot{width:9px;height:9px;border-radius:50%;background:#CE93D8}
+.lm-badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:6px;border:0.5px solid;display:inline-block}
 </style>
 </head>
 <body>
@@ -68,9 +88,19 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
     </div>
     <button class="refbtn" onclick="loadData()">Refrescar</button>
   </div>
+  <div class="tabs">
+    <button class="tab-btn active-main" id="tab-main" onclick="switchTab('main')">Sandloads</button>
+    <button class="tab-btn" id="tab-lm" onclick="switchTab('lamesa')">La Mesa</button>
+  </div>
   <div id="msg-box"></div>
-  <div class="stats" id="stats"></div>
-  <div id="timeline"></div>
+  <div id="main-view">
+    <div class="stats" id="stats"></div>
+    <div id="timeline"></div>
+  </div>
+  <div id="lamesa-view" style="display:none">
+    <div class="stats" id="lm-stats"></div>
+    <div id="lm-grid"></div>
+  </div>
 </div>
 
 <script>
@@ -80,11 +110,12 @@ const REFRESH_MS = 5 * 60 * 1000;
 
 const PB     = {accent:"#00E676", dim:"#00a152", badgeCls:"pb-badge"};
 const CRANE  = {accent:"#9aa0a8", dim:"#4a5058", badgeCls:"crane-badge"};
-const VISTA  = {accent:"#EF9F27", dim:"#a06800", badgeCls:"vista-badge"};
+const VISTA   = {accent:"#EF9F27", dim:"#a06800", badgeCls:"vista-badge"};
+const BORLAND = {accent:"#4FC3F7", dim:"#0277bd", badgeCls:"borland-badge"};
 const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
-const BROKEN  = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
-const LAMESA  = {accent:"#A78BFA", dim:"#6d28d9", badgeCls:"lamesa-badge"};
+const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
+const LAMESA = {accent:"#CE93D8", dim:"#7B1FA2", badgeCls:"lamesa-badge"};
 
 function isBroken(d){return d.status==="ROTO"||d.status==="REPAIRING";}
 function isNoShow(d){return d.status==="no contesta";}
@@ -93,24 +124,27 @@ function palette(d){
   if(isBroken(d)) return BROKEN;
   if(isNoShow(d)) return NOSHOW;
   if(isIdle(d))   return IDLE;
-  if(d.type==="CRANE")  return CRANE;
-  if(d.type==="VISTA")  return VISTA;
-  if(d.type==="LAMESA") return LAMESA;
+  if(d.type==="CRANE")   return CRANE;
+  if(d.type==="VISTA")   return VISTA;
+  if(d.type==="BORLAND") return BORLAND;
+  if(d.type==="LAMESA")  return LAMESA;
   return PB;
 }
 function rowClass(d){
   if(d.photos>=d.qty&&d.qty>0){
-    if(d.type==="CRANE")  return "row-done-crane";
-    if(d.type==="VISTA")  return "row-done-vista";
-    if(d.type==="LAMESA") return "row-done-lamesa";
+    if(d.type==="CRANE")   return "row-done-crane";
+    if(d.type==="VISTA")   return "row-done-vista";
+    if(d.type==="BORLAND") return "row-done-borland";
+    if(d.type==="LAMESA")  return "row-done-lamesa";
     return "row-done";
   }
   if(isBroken(d)) return "row-broken";
   if(isNoShow(d)) return "row-no-show";
   if(isIdle(d))   return "row-idle";
-  if(d.type==="CRANE")  return "row-active-crane";
-  if(d.type==="VISTA")  return "row-vista";
-  if(d.type==="LAMESA") return "row-lamesa";
+  if(d.type==="CRANE")   return "row-active-crane";
+  if(d.type==="VISTA")   return "row-vista";
+  if(d.type==="BORLAND") return "row-borland";
+  if(d.type==="LAMESA")  return "row-lamesa";
   return "row-active";
 }
 function nameClass(d){
@@ -123,31 +157,36 @@ function fmtH(h){return h===0?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm";}
 const MIN_H=0,MAX_H=20;
 function pct(h){return((h-MIN_H)/(MAX_H-MIN_H)*100).toFixed(2);}
 
+const LAMESA_ROSTER=[
+  {name:"Ernesto", truck:"2632"},
+  {name:"Yosvani", truck:"88"},
+  {name:"Yordis",  truck:"2947"},
+  {name:"Yoel",    truck:"41"},
+  {name:"Bryan",   truck:"23"},
+  {name:"Nelson",  truck:"1"},
+  {name:"Enrique", truck:"11"},
+  {name:"Jesus",   truck:"385"},
+  {name:"Arley",   truck:"207"},
+];
+
 // Fallback: datos de muestra
 const SAMPLE=[
-  {name:"Ernesto",  truck:"2632",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Ernesto",  truck:"2632",startH:0, qty:4,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Pedro",    truck:"2026",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Yanquiel", truck:"122", startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Miguel",   truck:"959", startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
-  {name:"Yosvani",  truck:"88",  startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
+  {name:"Yosvani",  truck:"88",  startH:0, qty:5,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Jesus",    truck:"0385",startH:0, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Doanys",   truck:"804", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Yasiel",   truck:"960", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Felix",    truck:"24",  startH:11,qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Santiago", truck:"961", startH:5, qty:5,photos:0,status:"ACTIVO",type:"PB"},
   {name:"Leandro",  truck:"206", startH:4, qty:5,photos:0,status:"ACTIVO",type:"CRANE"},
-  {name:"Yordis",   truck:"2947",startH:9, qty:5,photos:0,status:"ACTIVO",type:"VISTA"},
+  {name:"Yordis",   truck:"2947",startH:0, qty:6,photos:0,status:"ACTIVO",type:"LAMESA"},
   {name:"Juan",     truck:"T27", startH:15,qty:5,photos:0,status:"ACTIVO",type:"VISTA"},
 ];
 
-function isCanceled(cell){
-  const bg=cell?.effectiveFormat?.backgroundColor;
-  if(!bg) return false;
-  // White/default = no fill; any other color = canceled
-  return !(bg.red>=0.99 && bg.green>=0.99 && bg.blue>=0.99);
-}
-
-function parseRows(rowData){
+function parseRows(rows){
   const STATUS_NORM={
     "activo":"ACTIVO","active":"ACTIVO","done":"DONE",
     "roto":"ROTO","broken":"ROTO","repairing":"REPAIRING",
@@ -157,53 +196,51 @@ function parseRows(rowData){
 
   const drivers=[];
 
-  for(const row of rowData){
-    const cells=row.values||[];
-    const vals=cells.map(c=>(c.formattedValue||"").trim());
-
-    const rutaIdx=vals.findIndex(v=>/nash|vista|prefill|borland|la\s*mesa/i.test(v));
+  for(const cells of rows){
+    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|venom|borland|la\s*mesa/i.test(v||""));
     if(rutaIdx<2) continue;
 
-    const ruta=vals[rutaIdx];
+    const ruta=cells[rutaIdx]||"";
     const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":/la\s*mesa/i.test(ruta)?"LAMESA":"PB";
 
-    const nameFull=vals[rutaIdx-2];
-    const truck=vals[rutaIdx-1];
+    // Col layout: [... name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx) ...]
+    const nameFull=(cells[rutaIdx-2]||"").trim();
+    const truck=(cells[rutaIdx-1]||"").trim();
     if(!nameFull || /^\d/.test(nameFull)) continue;
 
-    const qty=parseInt(vals[rutaIdx+1])||5;
-    const stRaw=(vals[rutaIdx+2]||"").toLowerCase().trim();
+    const qty=parseInt(cells[rutaIdx+1]||"")||5;
+    const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
     const status=STATUS_NORM[stRaw]||(stRaw?"ACTIVO":"pendiente");
-
-    // Skip load cells with color fill (canceled loads)
-    const photos=cells.slice(rutaIdx+3).filter(c=>{
-      const v=(c.formattedValue||"").trim();
-      return /^\d{6,}$/.test(v) && !isCanceled(c);
-    }).length;
+    const photos=cells.slice(rutaIdx+3).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
 
     const hm=ruta.match(/(\d{1,2})\s*(am|pm)/i);
-    let startH=0, hasTime=false;
+    let startH=0;
     if(hm){
       let h=parseInt(hm[1]);
       const ap=hm[2].toLowerCase();
       if(ap==="pm"&&h!==12) h+=12;
       if(ap==="am"&&h===12) h=0;
-      startH=h; hasTime=true;
+      startH=h;
     }
 
-    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,hasTime,qty,photos,status,type});
+    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,qty,photos,status,type});
   }
   return drivers;
 }
 
-async function fetchAllRows(tabName){
+async function fetchAllRows(){
+  const now=new Date();
+  const tabName=String(now.getMonth()+1).padStart(2,'0')+"."+String(now.getDate()).padStart(2,'0');
+  // Single-quotes required by Sheets API for tab names containing dots
+  const range=encodeURIComponent("'"+tabName+"'");
+
   const res=await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?includeGridData=true&ranges=${encodeURIComponent("'"+tabName+"'")}&key=${API_KEY}&_=${Date.now()}`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}?key=${API_KEY}&_=${Date.now()}`,
     {referrerPolicy:"unsafe-url"}
   );
   const json=await res.json();
   if(json.error) throw new Error(json.error.message);
-  return json.sheets?.[0]?.data?.[0]?.rowData||[];
+  return json.values||[];
 }
 
 async function loadData(){
@@ -214,18 +251,25 @@ async function loadData(){
   document.getElementById("upd").textContent="Actualizando...";
   document.getElementById("msg-box").innerHTML="";
   try{
-    const rows=await fetchAllRows(tabName);
+    const rows=await fetchAllRows();
     const drivers=parseRows(rows);
-    if(drivers.length===0){
+    // Always inject La Mesa roster — missing members show as pending
+    const lamesaTrucks=new Set(drivers.filter(d=>d.type==="LAMESA").map(d=>d.truck));
+    for(const r of LAMESA_ROSTER){
+      if(!lamesaTrucks.has(r.truck)){
+        drivers.push({name:r.name,truck:r.truck,startH:0,qty:0,photos:0,status:"ACTIVO",type:"LAMESA"});
+      }
+    }
+    if(drivers.filter(d=>d.type!=="LAMESA").length===0){
       document.getElementById("msg-box").innerHTML=
-        `<div class="info-msg">Pestaña "${tabName}" sin choferes.</div>`;
+        `<div class="info-msg">Pestaña "${tabName}" sin choferes — mostrando datos de sesión.</div>`;
       render(SAMPLE);
     } else {
       render(drivers);
     }
   }catch(e){
     const msg=e.message.includes("permission")||e.message.includes("parse")
-      ?`Pestaña "${tabName}" no encontrada en el sheet.`
+      ?`Pestaña "${tabName}" no encontrada en el sheet — crea la pestaña para ver datos de hoy.`
       :e.message;
     document.getElementById("msg-box").innerHTML=`<div class="info-msg">${msg}</div>`;
     render(SAMPLE);
@@ -249,27 +293,19 @@ function render(DRIVERS){
 
   function row(d){
     const pal=palette(d);
+    const startP=parseFloat(pct(d.startH));
     const bSize=18;
+    const minSpan=25;
+    const naturalSpan=parseFloat(pct(d.startH+d.qty*1.5+0.5))-startP;
+    const span=Math.max(naturalSpan,minSpan);
+    const cappedStart=Math.min(startP, 98-span-8);
     let bubbles="";
-    if(d.hasTime){
-      const startP=parseFloat(pct(d.startH));
-      const naturalSpan=parseFloat(pct(d.startH+d.qty*1.5+0.5))-startP;
-      const span=Math.max(naturalSpan,25);
-      const cappedStart=Math.min(startP, 98-span-8);
-      for(let i=0;i<d.qty;i++){
-        const done=i<d.photos;
-        const lp=cappedStart+span*(i+0.5)/d.qty;
-        bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
-      }
-    } else {
-      for(let i=0;i<d.qty;i++){
-        const done=i<d.photos;
-        const lp=5+90*(i+0.5)/d.qty;
-        bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
-      }
+    for(let i=0;i<d.qty;i++){
+      const done=i<d.photos;
+      const lp=cappedStart+span*(i+0.5)/d.qty;
+      bubbles+=`<div class='t-bubble' style='left:${lp.toFixed(1)}%;width:${bSize}px;height:${bSize}px;background:${done?pal.accent:"transparent"};border-color:${done?pal.accent:pal.dim}'></div>`;
     }
-    const timeStr=d.hasTime?fmtH(d.startH):"GroupMe";
-    const label=d.truck?timeStr+" · #"+d.truck:timeStr;
+    const label=d.truck?fmtH(d.startH)+" · #"+d.truck:fmtH(d.startH);
     return`<div class='t-row ${rowClass(d)}'><div class='t-accent' style='background:${pal.accent}'></div><div class='t-name'><div class='${nameClass(d)}'>${d.name}</div><div class='t-hour' style='color:${pal.accent}'>${label}</div></div><div class='t-count' style='color:${pal.accent}'>${d.photos}<span style='color:#666;font-weight:400;margin:0 1px'>/</span>${d.qty}</div><div class='t-bar'>${bubbles}</div></div>`;
   }
 
@@ -286,14 +322,15 @@ function render(DRIVERS){
     vista.forEach(d=>{html+=row(d);});
   }
   if(borland.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#29B6F6'></div><span style='color:#29B6F6'>Borland to Venom</span></div>`;
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#4FC3F7'></div><span style='color:#4FC3F7'>Borland to Venom</span></div>`;
     borland.forEach(d=>{html+=row(d);});
   }
   if(lamesa.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#A78BFA'></div><span style='color:#A78BFA'>LA MESA - GROUPME</span></div>`;
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#CE93D8'></div><span style='color:#CE93D8'>La Mesa - GroupMe</span></div>`;
     lamesa.forEach(d=>{html+=row(d);});
   }
   document.getElementById("timeline").innerHTML=html;
+  renderLaMesa(DRIVERS);
 
   const tot=DRIVERS.reduce((s,d)=>s+d.photos,0);
   const qty=DRIVERS.reduce((s,d)=>s+d.qty,0);
@@ -310,6 +347,41 @@ function render(DRIVERS){
     <div class='stat'><div class='stat-lbl'>Faltan</div><div class='stat-val'>${qty-tot}</div></div>
     <div class='stat'><div class='stat-lbl'>Choferes listos</div><div class='stat-val'>${doneD}/${totalD}</div><div class='stat-sub' style='color:#888'>${pctD}% completaron</div></div>
   `;
+}
+
+let activeTab='main';
+function switchTab(tab){
+  activeTab=tab;
+  document.getElementById('tab-main').className='tab-btn'+(tab==='main'?' active-main':'');
+  document.getElementById('tab-lm').className='tab-btn'+(tab==='lamesa'?' active-lm':'');
+  document.getElementById('main-view').style.display=tab==='main'?'':'none';
+  document.getElementById('lamesa-view').style.display=tab==='lamesa'?'':'none';
+}
+
+function renderLaMesa(DRIVERS){
+  const lm=DRIVERS.filter(d=>d.type==="LAMESA");
+  const tot=lm.reduce((s,d)=>s+d.photos,0);
+  const active=lm.filter(d=>d.photos>0).length;
+  document.getElementById('lm-stats').innerHTML=`
+    <div class='stat'><div class='stat-lbl'>Cargas La Mesa</div><div class='stat-val' style='color:#CE93D8'>${tot}</div></div>
+    <div class='stat'><div class='stat-lbl'>Activos</div><div class='stat-val' style='color:#CE93D8'>${active}</div></div>
+    <div class='stat'><div class='stat-lbl'>En roster</div><div class='stat-val' style='color:#CE93D8'>${lm.length}</div></div>
+  `;
+  let html="<div class='lm-grid'>";
+  for(const d of lm){
+    const broken=isBroken(d)||isNoShow(d);
+    const idle=d.photos===0&&!broken;
+    const cardCls='lm-card'+(d.photos>0&&!broken?' lm-done':idle?' lm-idle':broken?' lm-broken':'');
+    const dots=Array.from({length:d.photos},()=>`<div class='lm-dot'></div>`).join('');
+    let badge;
+    if(isBroken(d)) badge=`<span class='lm-badge' style='color:#FF4081;border-color:#b5004c;background:#1f0a12'>ROTO</span>`;
+    else if(isNoShow(d)) badge=`<span class='lm-badge' style='color:#FF4081;border-color:#b5004c;background:#1f0a12'>N/C</span>`;
+    else if(d.photos===0) badge=`<span class='lm-badge' style='color:#3a4a5a;border-color:#2a3540;background:#1a1c20'>pendiente</span>`;
+    else badge=`<span class='lm-badge' style='color:#CE93D8;border-color:#7B1FA2;background:#160d22'>ACTIVO</span>`;
+    html+=`<div class='${cardCls}'><div class='lm-name'>${d.name}</div><div class='lm-truck'>#${d.truck}</div><div class='lm-count'>${d.photos}</div><div class='lm-count-lbl'>cargas</div><div class='lm-dots'>${dots}</div>${badge}</div>`;
+  }
+  html+="</div>";
+  document.getElementById('lm-grid').innerHTML=html;
 }
 
 loadData();

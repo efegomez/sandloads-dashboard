@@ -1,19 +1,18 @@
 // ─────────────────────────────────────────────────────────────
-//  Dispatch Bot — WhatsApp + Gemini Vision + Google Sheets
-//  Flujo: imagen Newmile → extrae número → anota en Sheet → confirma al chofer
+//  Dispatch Bot — Telegram + Claude Vision + Google Sheets
 // ─────────────────────────────────────────────────────────────
 
 require('dotenv').config();
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const Anthropic = require('@anthropic-ai/sdk');
-const { google } = require('googleapis');
-const cron       = require('node-cron');
-const fs         = require('fs');
-const path       = require('path');
-const nodemailer = require('nodemailer');
+const { Telegraf } = require('telegraf');
+const Anthropic    = require('@anthropic-ai/sdk');
+const { google }   = require('googleapis');
+const cron         = require('node-cron');
+const fs           = require('fs');
+const path         = require('path');
+const https        = require('https');
+const http         = require('http');
 
-// ─── LOGGING A ARCHIVO ───────────────────────────────────────
+// ─── LOGGING ────────────────────────────────────────────────
 const LOG_DIR = path.join(__dirname, 'logs');
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR);
 
@@ -34,88 +33,60 @@ const _error = console.error.bind(console);
 console.log   = (...a) => { _log(...a);   writeLog('INFO',  a); };
 console.error = (...a) => { _error(...a); writeLog('ERROR', a); };
 
-// ─── CONFIGURACIÓN ───────────────────────────────────────────
-
-const SPREADSHEET_ID  = process.env.SPREADSHEET_ID;           // Sandloads TEST
-const SHEET_ID_2026   = '1FlPvLr6eHExUb14CqPtPTUQmlHgUokIjLHFsidWzk-Y'; // Sandloads 2026
-const ANTHROPIC_KEY   = process.env.ANTHROPIC_API_KEY;
-const GOOGLE_CREDS    = process.env.GOOGLE_CREDENTIALS_PATH || './credentials.json';
-const TARGET_GROUPS   = (process.env.GROUP_NAMES || 'Test').split(',').map(g => g.trim());
-const OWNER_PHONE     = `${process.env.OWNER_PHONE}@c.us`;
+// ─── CONFIGURACIÓN ──────────────────────────────────────────
+const SPREADSHEET_ID    = process.env.SPREADSHEET_ID;
+const SHEET_ID_2026     = '1FlPvLr6eHExUb14CqPtPTUQmlHgUokIjLHFsidWzk-Y';
+const CHOFERES_SHEET_ID = process.env.CHOFERES_SHEET_ID || SPREADSHEET_ID;
+const ANTHROPIC_KEY     = process.env.ANTHROPIC_API_KEY;
+const GOOGLE_CREDS      = process.env.GOOGLE_CREDENTIALS_PATH || './credentials.json';
+const TARGET_GROUP_IDS  = (process.env.GROUP_CHAT_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+const OWNER_CHAT_ID     = process.env.OWNER_CHAT_ID;
+const BOT_TOKEN         = process.env.TELEGRAM_BOT_TOKEN;
 
 // Columnas del tab diario (índice 0-based)
-const COL_DRIVER      = 2;  // C — nombre
-const COL_TRUCK       = 3;  // D — truck #
-const COL_RUTA        = 4;  // E — ruta
-const COL_PHOTO_FIRST = 8;  // I — primera columna de números de carga
+const COL_DRIVER      = 2;
+const COL_TRUCK       = 3;
+const COL_RUTA        = 4;
+const COL_PHOTO_FIRST = 8;
 
-// Cache del directorio de choferes (se carga al arrancar)
-let PHONE_MAP = {};  // telefono(últimos 10) → nombre del chofer principal en el sheet
+// ─── BOT INSTANCE ───────────────────────────────────────────
+const bot = new Telegraf(BOT_TOKEN);
+
+// ─── DIRECTORIO ─────────────────────────────────────────────
+// Mapea telegram_user_id → nombre principal en sheet (columna D de Choferes)
+let TELEGRAM_MAP = {};
 
 async function cargarDirectorio() {
   try {
     const sheets = await getGoogleSheets();
     const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: 'Choferes!A2:C100',
+      spreadsheetId: CHOFERES_SHEET_ID,
+      range: 'Choferes!A2:D100',
     });
     const rows = res.data.values || [];
-    const norm = (n) => String(n).replace(/\D/g, '').slice(-10);
-    PHONE_MAP = {};
+    TELEGRAM_MAP = {};
     for (const row of rows) {
-      const nombre    = (row[0] || '').trim();
-      const telefono  = (row[1] || '').trim();
-      const principal = (row[2] || '').trim() || nombre;
-      if (telefono && nombre) PHONE_MAP[norm(telefono)] = principal.toLowerCase();
+      const nombre     = (row[0] || '').trim();
+      const principal  = (row[2] || '').trim() || nombre;
+      const telegramId = (row[3] || '').trim();
+      if (telegramId && nombre) TELEGRAM_MAP[telegramId] = principal.toLowerCase();
     }
-    console.log(`Directorio cargado: ${Object.keys(PHONE_MAP).length} teléfonos.`);
+    console.log(`Directorio cargado: ${Object.keys(TELEGRAM_MAP).length} choferes con Telegram registrado.`);
   } catch (e) {
     console.error('Error cargando directorio:', e.message);
   }
 }
 
+// ─── HELPERS ────────────────────────────────────────────────
 function getTodayKey() {
-  const now = new Date();
-  const mm  = String(now.getMonth() + 1).padStart(2, '0');
-  const dd  = String(now.getDate()).padStart(2, '0');
-  return `${mm}.${dd}`;
+  const bogota = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+  return String(bogota.getMonth() + 1).padStart(2, '0') + '.' + String(bogota.getDate()).padStart(2, '0');
 }
 
-// ─── GOOGLE SHEETS ────────────────────────────────────────────
-
-async function getGoogleSheets() {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: GOOGLE_CREDS,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-  const authClient = await auth.getClient();
-  return google.sheets({ version: 'v4', auth: authClient });
-}
-
-async function leerFilasHoy() {
-  const sheets  = await getGoogleSheets();
-  const tabName = getTodayKey();
-
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${tabName}!A:W`,
-  });
-  const allRows = res.data.values || [];
-
-  const driverRows = allRows.map((rowData, i) => ({ rowData, sheetRowIdx: i }));
-  return { driverRows, tabName };
-}
-
-function encontrarChofer(driverRows, celular) {
-  const norm = (n) => String(n).replace(/\D/g, '').slice(-10);
-  const cel  = norm(celular);
-
-  // Buscar nombre del chofer (o principal si es co-driver) en el directorio
-  const nombrePrincipal = PHONE_MAP[cel];
-  if (!nombrePrincipal) return null;
-
-  console.log(`Teléfono ${cel} → chofer: ${nombrePrincipal}`);
-  return driverRows.find(r => (r.rowData[COL_DRIVER] || '').trim().toLowerCase() === nombrePrincipal) || null;
+function getTomorrowKey() {
+  const bogota = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+  bogota.setDate(bogota.getDate() + 1);
+  return String(bogota.getMonth() + 1).padStart(2, '0') + '.' + String(bogota.getDate()).padStart(2, '0');
 }
 
 function colIdxToLetra(idx) {
@@ -128,45 +99,129 @@ function colIdxToLetra(idx) {
   return letra;
 }
 
-async function anotarEnSheet(tabName, sheetRowIdx, rowData, numeroCarga) {
-  const sheets = await getGoogleSheets();
+// ─── GOOGLE SHEETS ──────────────────────────────────────────
+async function getGoogleSheets() {
+  const auth = process.env.GOOGLE_CREDENTIALS_JSON
+    ? new google.auth.GoogleAuth({
+        credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON),
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      })
+    : new google.auth.GoogleAuth({
+        keyFile: GOOGLE_CREDS,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+  const authClient = await auth.getClient();
+  return google.sheets({ version: 'v4', auth: authClient });
+}
 
-  // Verificar duplicado en la fila del chofer
+async function leerFilasHoy() {
+  const sheets  = await getGoogleSheets();
+  const tabName = getTodayKey();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${tabName}!A:W`,
+  });
+  const allRows = res.data.values || [];
+  const driverRows = allRows.map((rowData, i) => ({ rowData, sheetRowIdx: i }));
+  return { driverRows, tabName };
+}
+
+function encontrarChofer(driverRows, telegramUserId) {
+  const nombrePrincipal = TELEGRAM_MAP[telegramUserId];
+  if (!nombrePrincipal) return null;
+  console.log(`Telegram ID ${telegramUserId} → chofer: ${nombrePrincipal}`);
+  return driverRows.find(r => (r.rowData[COL_DRIVER] || '').trim().toLowerCase() === nombrePrincipal) || null;
+}
+
+function encontrarChoferLaMesa(driverRows, driverName, telegramUserId) {
+  const sepIdx = driverRows.findIndex(r =>
+    (r.rowData[COL_DRIVER] || '').trim().toLowerCase() === 'la mesa - groupme'
+  );
+  if (sepIdx === -1) { console.log('Separador LA MESA - GROUPME no encontrado'); return null; }
+  const laMesaRows = driverRows.slice(sepIdx + 1);
+
+  // Primero: buscar por Telegram ID (chofer registrado con /registrar)
+  if (telegramUserId) {
+    const nombrePrincipal = TELEGRAM_MAP[telegramUserId];
+    if (nombrePrincipal) {
+      const byId = laMesaRows.find(r => (r.rowData[COL_DRIVER] || '').trim().toLowerCase() === nombrePrincipal);
+      if (byId) { console.log(`La Mesa: Telegram ID ${telegramUserId} → ${nombrePrincipal}`); return byId; }
+    }
+  }
+
+  // Fallback: nombre del driver extraído del ticket
+  const nameLower = (driverName || '').toLowerCase().trim();
+  console.log(`La Mesa: buscando por nombre "${nameLower}"`);
+  return laMesaRows.find(r => (r.rowData[COL_DRIVER] || '').trim().toLowerCase() === nameLower) || null;
+}
+
+async function anotarEnSheet(tabName, sheetRowIdx, rowData, numeroCarga) {
+  const sheets     = await getGoogleSheets();
   const existentes = rowData.slice(COL_PHOTO_FIRST).map(v => (v || '').trim());
   if (existentes.includes(numeroCarga)) {
     console.log(`Duplicado detectado: ${numeroCarga} ya existe en fila ${sheetRowIdx + 1}`);
-    return null; // señal de duplicado
+    return null;
   }
-
   let colIdx = COL_PHOTO_FIRST;
-  while (colIdx < rowData.length && (rowData[colIdx] || '').trim() !== '') {
-    colIdx++;
-  }
-
+  while (colIdx < rowData.length && (rowData[colIdx] || '').trim() !== '') colIdx++;
   const colLetra = colIdxToLetra(colIdx);
   const rowNum   = sheetRowIdx + 1;
   const range    = `${tabName}!${colLetra}${rowNum}`;
   const numFoto  = colIdx - COL_PHOTO_FIRST + 1;
-
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range,
     valueInputOption: 'RAW',
     requestBody: { values: [[numeroCarga]] },
   });
-
   console.log(`Anotado ${numeroCarga} en ${range}`);
   return numFoto;
 }
 
-// ─── CLAUDE VISION — EXTRAE NÚMERO DE CARGA ──────────────────
+async function anotarLaMesa(tabName, sheetRowIdx, rowData, bolId, tons) {
+  const sheets = await getGoogleSheets();
 
+  // Verificar duplicado (columnas pares desde COL_PHOTO_FIRST)
+  const existingBols = [];
+  for (let i = COL_PHOTO_FIRST; i < rowData.length; i += 2) {
+    if ((rowData[i] || '').trim()) existingBols.push((rowData[i] || '').trim());
+  }
+  if (existingBols.includes(bolId)) {
+    console.log(`Duplicado La Mesa: BOL ${bolId} ya existe en fila ${sheetRowIdx + 1}`);
+    return null;
+  }
+
+  // Siguiente par libre (BOL en col par, Tons en col impar)
+  let colIdx = COL_PHOTO_FIRST;
+  while (colIdx < rowData.length && (rowData[colIdx] || '').trim() !== '') colIdx += 2;
+
+  const colBol  = colIdxToLetra(colIdx);
+  const colTons = colIdxToLetra(colIdx + 1);
+  const rowNum  = sheetRowIdx + 1;
+  const tripNum = (colIdx - COL_PHOTO_FIRST) / 2 + 1;
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: {
+      valueInputOption: 'RAW',
+      data: [
+        { range: `${tabName}!${colBol}${rowNum}`,  values: [[bolId]] },
+        { range: `${tabName}!${colTons}${rowNum}`, values: [[tons]]  },
+      ],
+    },
+  });
+
+  console.log(`Anotado La Mesa: BOL ${bolId} / ${tons} tons en ${tabName}!${colBol}-${colTons}${rowNum}`);
+  return tripNum;
+}
+
+// ─── CLAUDE VISION ──────────────────────────────────────────
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_KEY });
 
-async function extraerNumeroCarga(imagenBase64, mimeType) {
+async function extraerDatosImagen(imagenBase64, mimeType) {
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 50,
+    max_tokens: 100,
     messages: [{
       role: 'user',
       content: [
@@ -176,213 +231,61 @@ async function extraerNumeroCarga(imagenBase64, mimeType) {
         },
         {
           type: 'text',
-          text: `Esta es una imagen enviada por un chofer de carga de arena.
+          text: `Analiza esta imagen de un chofer de carga de arena. Sigue este orden EXACTO:
 
-PRIMERO determina el tipo de imagen:
+1. PRIMERO verifica si es ticket de La Mesa / Hibernia:
+   Señales: "PO: KATHERINEJ10H", "Hibernia Resources", "Lamesa, TX", campo "BOL ID:" o "BOL #:".
+   Estos tickets SÍ tienen código QR — el QR no es motivo para ignorarlos.
+   → Extrae: BOL ID (7 dígitos del campo BOL ID/BOL #), Tons (número decimal columna Tons), nombre Driver.
+   → Responde: LAMESA|1145740|24.64|Jesus Valdes
 
-TIPO A — TICKET (ignorar). Señales: código QR, toneladas (tons/net tons/gross tons), texto "Damp SandCo" o "SandCo, LLC".
-→ Si es TICKET: responde NO_ENCONTRADO
+2. LUEGO verifica si es pantalla Newmile (app de asignación de carga):
+   Señales: interfaz de app móvil, botones "Aceptar Carga", "Descargado", número de carga de 7 dígitos.
+   → Extrae el número de 7 dígitos de la carga NUEVA aceptada.
+   → Responde: NEWMILE|1234567
 
-TIPO B — SOLICITUD NEWMILE (pantalla de la app con una sola asignación de carga).
-→ Extrae el único número de 7 dígitos visible.
+3. Si es ticket de SandCo / Damp SandCo (texto "SandCo, LLC", "Damp SandCo") o imagen no reconocida:
+   → Responde: IGNORAR
 
-TIPO C — CHAT NEWMILE (conversación de la app con múltiples mensajes).
-Señales: texto "Se te ha asignado una carga de X a Y", botones "Aceptar Carga", "Descargado", "¿Qué te gustaría hacer?".
-→ Pueden aparecer varios números de 7 dígitos. Extrae SOLO el número de la carga NUEVA aceptada: el que aparece DESPUÉS de "Aceptar Carga" o en el mensaje de confirmación "Te estamos dirigiendo a la cargadero".
-→ Ignora los números de cargas anteriores ya completadas.
-
-El número de carga tiene EXACTAMENTE 7 dígitos (ej: 1614193, 1638661).
-Responde SOLO con el número de 7 dígitos, sin texto adicional.
-Si no puedes identificar el número correcto: responde NO_ENCONTRADO`,
+Responde SOLO en el formato indicado, sin texto adicional.`,
         },
       ],
     }],
   });
-
   const texto = response.content[0].text.trim();
   console.log(`Claude extrajo: "${texto}"`);
-  // Validar que sea exactamente 7 dígitos
-  if (!/^\d{7}$/.test(texto)) return 'NO_ENCONTRADO';
-  return texto;
+
+  const parts = texto.split('|');
+  if (parts[0] === 'NEWMILE' && /^\d{7}$/.test(parts[1])) {
+    return { tipo: 'NEWMILE', numero: parts[1] };
+  }
+  if (parts[0] === 'LAMESA' && parts[1] && parts[2]) {
+    return { tipo: 'LAMESA', bolId: parts[1].trim(), tons: parts[2].trim(), driver: (parts[3] || '').trim() };
+  }
+  return { tipo: 'IGNORAR' };
 }
 
-// ─── WHATSAPP CLIENT ──────────────────────────────────────────
-
-function makeClient() {
-  return new Client({
-    authStrategy: new LocalAuth({
-      clientId: 'dispatch-bot',
-      dataPath: 'C:\\Users\\efego\\AppData\\Local\\dispatch-bot-v2',
-    }),
-    webVersionCache: {
-      type: 'remote',
-      remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1023950842-alpha.html',
-    },
-    puppeteer: {
-      headless: true,
-      protocolTimeout: 120000,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--disable-web-security',
-        '--no-first-run',
-        '--no-zygote',
-      ],
-    },
+// ─── DESCARGA FOTO TELEGRAM ─────────────────────────────────
+async function downloadTelegramPhoto(fileId) {
+  const fileInfo = await bot.telegram.getFile(fileId);
+  const url = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileInfo.file_path}`;
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
+      res.on('error', reject);
+    });
   });
 }
 
-let client = makeClient();
-
-// ─── EMAIL DE ALERTA ─────────────────────────────────────────
-const mailer = nodemailer.createTransport({
-  service: 'gmail',
-  auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-});
-
-async function sendAlert(asunto, detalle) {
-  // ALERTAS SUSPENDIDAS — reactivar quitando este return
-  console.warn(`[ALERTA SUSPENDIDA] ${asunto}: ${detalle}`);
-  return;
-  const ts = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
-  try {
-    await mailer.sendMail({
-      from: `"Dispatch Bot" <${process.env.GMAIL_USER}>`,
-      to: process.env.GMAIL_USER,
-      subject: `🚨 Bot Dispatch — ${asunto}`,
-      text: `${asunto}\n\nHora: ${ts}\nDetalle: ${detalle}\n\nReinicia el bot: npm run restart`,
-    });
-    console.log(`Alerta enviada: ${asunto}`);
-  } catch (e) {
-    console.error('Error enviando alerta:', e.message);
-  }
-}
-
-client.on('qr', (qr) => {
-  console.log('\nEscanea este QR con WhatsApp Business → Dispositivos vinculados:\n');
-  qrcode.generate(qr, { small: true });
-});
-
-client.on('ready', async () => {
-  await cargarDirectorio();
-  console.log(`Bot Dispatch listo. Escuchando grupos: ${TARGET_GROUPS.map(g => `"${g}"`).join(', ')}\n`);
-});
-
-client.on('disconnected', async (reason) => {
-  console.error(`Bot desconectado: ${reason}`);
-  await sendAlert('Bot desconectado de WhatsApp', reason);
-});
-
-client.on('auth_failure', async (msg) => {
-  console.error(`Fallo de autenticación: ${msg}`);
-  await sendAlert('Fallo de autenticación WhatsApp', msg);
-});
-
-client.on('message_create', async (msg) => {
-  console.log(`[RAW] fromMe=${msg.fromMe} from=${msg.from} type=${msg.type} hasMedia=${msg.hasMedia}`);
-  if (msg.fromMe) return;
-  try {
-    const chat = await msg.getChat();
-    console.log(`[DEBUG] msg from=${msg.from} group=${chat.name} hasMedia=${msg.hasMedia}`);
-    const isGroup = msg.from.endsWith('@g.us');
-    if (!isGroup || !msg.hasMedia || msg.type !== 'image') return;
-
-    if (!TARGET_GROUPS.some(g => chat.name.includes(g))) return;
-
-    const remitente = msg.author || msg.from;
-
-    // Resolver teléfono real antes de loguear (evita @lid ilegibles)
-    let celular;
-    try {
-      const contact = await msg.getContact();
-      celular = contact.id.user || contact.number || remitente.replace(/\D/g, '');
-    } catch {
-      celular = remitente.replace(/\D/g, '');
-    }
-    const normPhone = (n) => String(n).replace(/\D/g, '').slice(-10);
-    const nombreLog = PHONE_MAP[normPhone(celular)] || celular;
-    console.log(`Imagen de ${nombreLog} en "${chat.name}"`);
-
-    // 1. Descargar imagen
-    const media = await msg.downloadMedia();
-    if (!media) { console.log('No se pudo descargar la imagen'); return; }
-
-    // 2. Extraer número con Claude
-    const numeroCarga = await extraerNumeroCarga(media.data, media.mimetype);
-
-    if (numeroCarga === 'NO_ENCONTRADO') {
-      console.log(`Imagen ignorada (${nombreLog}): ticket o no-Newmile`);
-      return;
-    }
-
-    // 3. Leer bloque de hoy del sheet
-    let driverRows, tabName;
-    try {
-      ({ driverRows, tabName } = await leerFilasHoy());
-    } catch (e) {
-      console.log(`Error leyendo sheet: ${e.message}`);
-      await client.sendMessage(OWNER_PHONE,`No pude leer la hoja "${getTodayKey()}". Verifica que exista.`);
-      return;
-    }
-
-    // 4. Buscar chofer (celular ya resuelto arriba)
-    const chofer  = encontrarChofer(driverRows, celular);
-
-    if (!chofer) {
-      await client.sendMessage(OWNER_PHONE,`Tu número (${celular}) no está en el sistema de hoy. Habla con tu despachador.`);
-      return;
-    }
-
-    const { rowData, sheetRowIdx } = chofer;
-    const driverName = (rowData[COL_DRIVER] || 'Driver').trim().split(' ')[0];
-    const truck      = rowData[COL_TRUCK]  || '-';
-    const ruta       = rowData[COL_RUTA]   || '-';
-
-    // 5. Anotar en sheet
-    const numFoto = await anotarEnSheet(tabName, sheetRowIdx, rowData, numeroCarga);
-
-    // 6. Notificar al owner
-    if (numFoto === null) {
-      console.log(`Duplicado ignorado: ${driverName} ya tiene ${numeroCarga}`);
-      await msg.reply(`Carga *${numeroCarga}* ya fue registrada. Envía la captura correcta.`);
-      return;
-    }
-
-    await client.sendMessage(
-      OWNER_PHONE,
-      `*Carga registrada*\n\n` +
-      `*${driverName}*\n` +
-      `Truck: *${truck}*\n` +
-      `Ruta: *${ruta}*\n` +
-      `Carga #${numFoto}: *${numeroCarga}*\n\n` +
-      `Anotado en el sistema.`
-    );
-
-    console.log(`Confirmado → ${driverName} | Carga #${numFoto}: ${numeroCarga}\n`);
-
-  } catch (err) {
-    console.error('Error:', err.message);
-  }
-});
-
-// ─── COPIA NOCTURNA: Sandloads 2026 → TEST (10 PM) ───────────
-
-function getTomorrowKey() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0');
-}
-
+// ─── COPIA NOCTURNA (10 PM Colombia) ────────────────────────
 async function copiarProgramacionManana() {
   const tabName = getTomorrowKey();
   console.log(`[CRON] Copiando programación ${tabName} de 2026 → TEST...`);
   try {
     const sheets = await getGoogleSheets();
 
-    // 1. Leer tab de mañana en Sandloads 2026
     let sourceValues;
     try {
       const src = await sheets.spreadsheets.values.get({
@@ -394,14 +297,21 @@ async function copiarProgramacionManana() {
 
     if (!sourceValues || sourceValues.length === 0) {
       console.log(`[CRON] Tab ${tabName} no existe en Sandloads 2026 — avisando`);
-      await client.sendMessage(OWNER_PHONE,
-        `⚠️ *Copia nocturna fallida*\n\nNo existe la pestaña *${tabName}* en Sandloads 2026.\nCrea la programación antes de las 10 PM.`
+      await bot.telegram.sendMessage(OWNER_CHAT_ID,
+        `Copia nocturna fallida\n\nNo existe la pestaña ${tabName} en Sandloads 2026.\nCrea la programación antes de las 10 PM.`
       );
       return;
     }
 
-    // 2. Eliminar tab existente en TEST si hay
-    const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+    const srcMeta  = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID_2026 });
+    const srcSheet = (srcMeta.data.sheets || []).find(s => s.properties.title === tabName);
+    if (!srcSheet) {
+      await bot.telegram.sendMessage(OWNER_CHAT_ID, `Copia nocturna fallida\n\nNo existe la pestaña ${tabName} en Sandloads 2026.`);
+      return;
+    }
+    const srcSheetId = srcSheet.properties.sheetId;
+
+    const meta     = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
     const existing = (meta.data.sheets || []).find(s => s.properties.title === tabName);
     if (existing) {
       await sheets.spreadsheets.batchUpdate({
@@ -410,67 +320,174 @@ async function copiarProgramacionManana() {
       });
     }
 
-    // 3. Crear tab nuevo en TEST y escribir datos
+    const copyRes = await sheets.spreadsheets.sheets.copyTo({
+      spreadsheetId: SHEET_ID_2026,
+      sheetId: srcSheetId,
+      requestBody: { destinationSpreadsheetId: SPREADSHEET_ID },
+    });
+    const newSheetId = copyRes.data.sheetId;
+
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
-      requestBody: { requests: [{ addSheet: { properties: { title: tabName, index: 0 } } }] },
-    });
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `'${tabName}'!A1`,
-      valueInputOption: 'RAW',
-      requestBody: { values: sourceValues },
+      requestBody: {
+        requests: [{ updateSheetProperties: { properties: { sheetId: newSheetId, title: tabName, index: 0 }, fields: 'title,index' } }],
+      },
     });
 
     const choferes = sourceValues.slice(2).filter(r => (r[COL_DRIVER] || '').trim()).length;
-    console.log(`[CRON] ✓ ${tabName} copiado — ${choferes} choferes`);
-    await client.sendMessage(OWNER_PHONE,
-      `✅ *Programación ${tabName} lista*\n\n${choferes} choferes copiados a Sandloads TEST.`
+    console.log(`[CRON] ${tabName} copiado — ${choferes} choferes`);
+    await bot.telegram.sendMessage(OWNER_CHAT_ID,
+      `Programacion ${tabName} lista\n\n${choferes} choferes copiados a Sandloads TEST.`
     );
   } catch (err) {
     console.error('[CRON] Error en copia nocturna:', err.message);
-    await client.sendMessage(OWNER_PHONE, `❌ Error en copia nocturna ${tabName}: ${err.message}`);
+    await bot.telegram.sendMessage(OWNER_CHAT_ID, `Error en copia nocturna ${tabName}: ${err.message}`);
   }
 }
 
-// 10 PM hora Colombia
 cron.schedule('0 22 * * *', copiarProgramacionManana, { timezone: 'America/Bogota' });
-console.log('Cron nocturno activo — copia programación a las 10 PM (Bogotá).');
+console.log('Cron nocturno activo — copia programacion a las 10 PM (Bogota).');
 
-// Shutdown limpio al Ctrl+C
-process.on('SIGINT', async () => {
-  console.log('\nCerrando bot...');
-  try { await client.destroy(); } catch {}
-  process.exit(0);
+// ─── COMANDO /registrar ──────────────────────────────────────
+// Cada chofer lo usa una vez para vincular su Telegram ID al sheet
+bot.command('registrar', async (ctx) => {
+  const nombre = ctx.message.text.split(' ').slice(1).join(' ').trim();
+  if (!nombre) return ctx.reply('Uso: /registrar TuNombreExacto\nEjemplo: /registrar Juan Perez');
+  try {
+    const sheets = await getGoogleSheets();
+    const res    = await sheets.spreadsheets.values.get({
+      spreadsheetId: CHOFERES_SHEET_ID,
+      range: 'Choferes!A2:D100',
+    });
+    const rows        = res.data.values || [];
+    const nombreLower = nombre.toLowerCase().trim();
+    let rowIndex = -1;
+    let principal = '';
+    for (let i = 0; i < rows.length; i++) {
+      if ((rows[i][0] || '').toLowerCase().trim() === nombreLower) {
+        rowIndex  = i + 2; // 1-indexed + skip header
+        principal = (rows[i][2] || rows[i][0] || '').trim();
+        break;
+      }
+    }
+    if (rowIndex === -1) return ctx.reply(`No encontre "${nombre}" en el sistema. Verifica tu nombre con el despachador.`);
+    const telegramId = String(ctx.from.id);
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: CHOFERES_SHEET_ID,
+      range: `Choferes!D${rowIndex}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[telegramId]] },
+    });
+    TELEGRAM_MAP[telegramId] = principal.toLowerCase();
+    console.log(`Registrado: ${nombre} → Telegram ID ${telegramId}`);
+    await ctx.reply(`Registrado. Bienvenido ${nombre.split(' ')[0]}.`);
+  } catch (e) {
+    console.error('Error en /registrar:', e.message);
+    await ctx.reply('Error al registrar. Intenta de nuevo o habla con el despachador.');
+  }
 });
 
-// Timeout de arranque — si no conecta en 90s, sale para reiniciar limpio
-const startupTimer = setTimeout(() => {
-  console.error('TIMEOUT: No conectó en 90s. Corre npm run restart.');
-  process.exit(1);
-}, 90000);
-client.once('ready', () => clearTimeout(startupTimer));
-client.once('qr',   () => clearTimeout(startupTimer));
-
-async function iniciar(intento = 1) {
-  console.log(`Iniciando cliente... (intento ${intento})`);
+// ─── HANDLER PRINCIPAL: IMAGEN EN GRUPO ─────────────────────
+bot.on('photo', async (ctx) => {
   try {
-    await client.initialize();
-  } catch (err) {
-    console.error(`Error al iniciar (intento ${intento}): ${err.message}`);
-    if (intento < 5) {
-      const delay = intento * 5000;
-      console.log(`Reintentando en ${delay / 1000}s...`);
-      try { await client.destroy(); } catch (_) {}
-      setTimeout(() => {
-        client = makeClient();
-        iniciar(intento + 1);
-      }, delay);
-    } else {
-      console.error('5 intentos fallidos. Saliendo.');
-      process.exit(1);
+    if (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup') return;
+    if (!TARGET_GROUP_IDS.includes(String(ctx.chat.id))) return;
+
+    const userId    = String(ctx.from.id);
+    const nombreLog = TELEGRAM_MAP[userId] || `user_${userId}`;
+    console.log(`Imagen de ${nombreLog} en "${ctx.chat.title}"`);
+
+    // Foto mas grande = mejor calidad para OCR
+    const photos = ctx.message.photo;
+    const fileId = photos[photos.length - 1].file_id;
+    const base64    = await downloadTelegramPhoto(fileId);
+    const resultado = await extraerDatosImagen(base64, 'image/jpeg');
+
+    if (resultado.tipo === 'IGNORAR') {
+      console.log(`Imagen ignorada (${nombreLog}): no reconocida`);
+      return;
     }
+
+    let driverRows, tabName;
+    try {
+      ({ driverRows, tabName } = await leerFilasHoy());
+    } catch (e) {
+      console.log(`Error leyendo sheet: ${e.message}`);
+      await bot.telegram.sendMessage(OWNER_CHAT_ID, `No pude leer la hoja "${getTodayKey()}". Verifica que exista.`);
+      return;
+    }
+
+    // ── TREC / NEWMILE ──────────────────────────────────────
+    if (resultado.tipo === 'NEWMILE') {
+      const chofer = encontrarChofer(driverRows, userId);
+      if (!chofer) {
+        await bot.telegram.sendMessage(OWNER_CHAT_ID,
+          `Chofer no registrado\nTelegram ID: ${userId}\nNombre: ${ctx.from.first_name}\nQue envie /registrar NombreExacto`
+        );
+        return;
+      }
+      const { rowData, sheetRowIdx } = chofer;
+      const driverName = (rowData[COL_DRIVER] || 'Driver').trim().split(' ')[0];
+      const truck      = rowData[COL_TRUCK] || '-';
+      const ruta       = rowData[COL_RUTA]  || '-';
+      const numFoto    = await anotarEnSheet(tabName, sheetRowIdx, rowData, resultado.numero);
+      if (numFoto === null) {
+        console.log(`Duplicado ignorado: ${driverName} ya tiene ${resultado.numero}`);
+        await ctx.reply(`Carga ${resultado.numero} ya fue registrada. Envia la captura correcta.`);
+        return;
+      }
+      await bot.telegram.sendMessage(OWNER_CHAT_ID,
+        `Carga registrada\n\n${driverName}\nTruck: ${truck}\nRuta: ${ruta}\nCarga #${numFoto}: ${resultado.numero}\n\nAnotado en el sistema.`
+      );
+      console.log(`Confirmado TREC → ${driverName} | Carga #${numFoto}: ${resultado.numero}\n`);
+    }
+
+    // ── LA MESA ─────────────────────────────────────────────
+    if (resultado.tipo === 'LAMESA') {
+      const chofer = encontrarChoferLaMesa(driverRows, resultado.driver, userId);
+      if (!chofer) {
+        await bot.telegram.sendMessage(OWNER_CHAT_ID,
+          `La Mesa: chofer "${resultado.driver}" no encontrado en sheet.\nBOL: ${resultado.bolId} | Tons: ${resultado.tons}`
+        );
+        return;
+      }
+      const { rowData, sheetRowIdx } = chofer;
+      const driverName = (rowData[COL_DRIVER] || 'Driver').trim().split(' ')[0];
+      const truck      = rowData[COL_TRUCK] || '-';
+      const tripNum    = await anotarLaMesa(tabName, sheetRowIdx, rowData, resultado.bolId, resultado.tons);
+      if (tripNum === null) {
+        await ctx.reply(`BOL ${resultado.bolId} ya fue registrado.`);
+        return;
+      }
+      await bot.telegram.sendMessage(OWNER_CHAT_ID,
+        `La Mesa registrado\n\n${driverName}\nTruck: ${truck}\nViaje #${tripNum}\nBOL: ${resultado.bolId}\nTons: ${resultado.tons}`
+      );
+      console.log(`Confirmado La Mesa → ${driverName} | BOL ${resultado.bolId} / ${resultado.tons} tons\n`);
+    }
+
+  } catch (err) {
+    console.error('Error:', err.message);
   }
+});
+
+// ─── HEALTH CHECK (Render / UptimeRobot) ────────────────────
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('OK');
+}).listen(PORT, () => console.log(`Health check en puerto ${PORT}`));
+
+// ─── ARRANQUE ───────────────────────────────────────────────
+process.once('SIGINT',  () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
+
+async function iniciar() {
+  await cargarDirectorio();
+  bot.launch();
+  console.log(`Bot Telegram listo. Grupos permitidos: ${TARGET_GROUP_IDS.join(', ') || '(ninguno aun — agrega GROUP_CHAT_IDS al .env)'}`);
 }
 
-iniciar();
+iniciar().catch(err => {
+  console.error('Error fatal al iniciar:', err.message);
+  process.exit(1);
+});

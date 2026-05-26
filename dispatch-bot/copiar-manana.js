@@ -27,26 +27,30 @@ function getTomorrowKey() {
 
 async function run() {
   const tabName = getTomorrowKey();
-  console.log(`Copiando pestana ${tabName} de Sandloads 2026 → TEST...`);
+  console.log(`Copiando pestana ${tabName} de Sandloads 2026 → TEST (con formato)...`);
   const sheets = await getSheets();
 
-  let sourceValues;
-  try {
-    const src = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID_2026,
-      range: `'${tabName}'!A:W`,
-    });
-    sourceValues = src.data.values;
-  } catch (e) {
-    console.error(`Tab ${tabName} no existe en Sandloads 2026: ${e.message}`);
+  // Get source sheet ID
+  const srcMeta = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID_2026 });
+  const srcSheet = (srcMeta.data.sheets || []).find(s => s.properties.title === tabName);
+  if (!srcSheet) {
+    console.error(`Tab ${tabName} no existe en Sandloads 2026.`);
     process.exit(1);
   }
+  const srcSheetId = srcSheet.properties.sheetId;
 
+  // Verify tab has data
+  const src = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID_2026,
+    range: `'${tabName}'!A:W`,
+  }).catch(() => null);
+  const sourceValues = src && src.data.values;
   if (!sourceValues || sourceValues.length === 0) {
     console.error(`Tab ${tabName} vacio en Sandloads 2026.`);
     process.exit(1);
   }
 
+  // Delete existing tab in TEST if present
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
   const existing = (meta.data.sheets || []).find(s => s.properties.title === tabName);
   if (existing) {
@@ -57,19 +61,29 @@ async function run() {
     console.log(`Tab ${tabName} existente eliminado.`);
   }
 
+  // Copy sheet (preserves formatting)
+  const copyRes = await sheets.spreadsheets.sheets.copyTo({
+    spreadsheetId: SHEET_ID_2026,
+    sheetId: srcSheetId,
+    requestBody: { destinationSpreadsheetId: SPREADSHEET_ID },
+  });
+  const newSheetId = copyRes.data.sheetId;
+
+  // Rename and move to front
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,
-    requestBody: { requests: [{ addSheet: { properties: { title: tabName, index: 0 } } }] },
-  });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `'${tabName}'!A1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: sourceValues },
+    requestBody: {
+      requests: [{
+        updateSheetProperties: {
+          properties: { sheetId: newSheetId, title: tabName, index: 0 },
+          fields: 'title,index',
+        },
+      }],
+    },
   });
 
   const choferes = sourceValues.slice(2).filter(r => (r[COL_DRIVER] || '').trim()).length;
-  console.log(`Listo. ${tabName} copiado con ${choferes} choferes.`);
+  console.log(`Listo. ${tabName} copiado con ${choferes} choferes (formato preservado).`);
 }
 
 run().catch(e => { console.error('Error:', e.message); process.exit(1); });

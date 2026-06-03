@@ -148,7 +148,7 @@ function parseRows(rows){
   const drivers=[];
 
   for(const cells of rows){
-    const rutaIdx=cells.findIndex(v=>/nash|vista|prefill|venom|borland/i.test(v||""));
+    const rutaIdx=cells.findIndex(v=>/\b(borland|vista|crane|prefill)\s+to\b|\bto\s+(venom|nash)\b/i.test(v||""));
     if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";

@@ -1,2 +1,32 @@
-#ignore all.txt files
+# ── Carpetas de trabajo — NUNCA publicar (repo público, GitHub Pages) ──
+# Contienen datos de clientes, credenciales y documentos personales.
+clientes/
+herramientas/
+aprendizaje/
+personal/
+
+# ── Tooling local ──
+.agents/
+.gstack/
+.claude/
+skills-lock.json
+
+# ── Secretos (defensa en profundidad, aunque las carpetas ya están ignoradas) ──
+.env
+.env.*
+*.env
+credentials.json
+credentials*.json
+token.json
+service-account*.json
+
+# ── Archivos personales / mapas internos con nombres de clientes ──
+PROJECT_MAP.md
+mapa_proyectos_fer.svg
+Certificado Curso.pdf
+*.pdf
+
+# ── Otros ──
+node_modules/
+logs/
 *.txt

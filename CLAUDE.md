@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo overview
 
-This folder (`C:\Users\efego\Claro drive\Claude\`) **is** the `efegomez/sandloads-dashboard` GitHub repo. Files in the root are published via GitHub Pages at `https://efegomez.github.io/sandloads-dashboard`.
+This folder (`C:\Users\efego\OneDrive\Documents\Claude\Projects\sandloads-dashboard\`) **is** the `efegomez/sandloads-dashboard` GitHub repo. Files in the root are published via GitHub Pages at `https://efegomez.github.io/sandloads-dashboard`.
+
+**Ubicación:** movida el 2026-07-16 de `C:\Users\efego\OneDrive\Documents\Claude\sandloads-dashboard\` a `...\Claude\Projects\sandloads-dashboard\`. Es solo un `git mv` de carpeta — no afecta al remoto de GitHub ni al historial.
 
 Sub-projects live under `clientes/`, `herramientas/`, `aprendizaje/`, `personal/`. See `CONTEXT.md` for full map.
 
@@ -54,4 +56,14 @@ See `clientes/TREC/dispatch-bot/RUNBOOK.md` for operations and troubleshooting.
 
 Quote generator for Bloom Design Studio. Single-file React 18 app (no build, JSX pre-compiled). Lives in its own git repo (`efegomez/cotizador-bloom`), deployed to GitHub Pages.
 
-See `clientes/Bloom/Cotizador Bloom/CLAUDE.md`
+See `clientes/Bloom/Cotizador Bloom/CLAUDE.md` for full architecture. Always edit `index.html` there — never `cotizador.html` or `indexold*.html`.
+
+## Credentials
+
+Never in git. Stored at `C:\Users\efego\Boveda\` (outside repo).
+
+## Files never to commit
+
+- `clientes/TREC/dispatch-bot/.env`
+- `clientes/TREC/dispatch-bot/credentials.json`
+- Any `*.json` file named like a GCP service account key

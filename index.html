@@ -25,10 +25,12 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .t-row.row-done-crane{background:#1c1e22}
 .t-row.row-done-vista{background:#1e1600}
 .t-row.row-done-borland{background:#0d1a2e}
+.t-row.row-done-jk{background:#1d0e2e}
 .t-row.row-active{background:#151a17}
 .t-row.row-active-crane{background:#18191d}
 .t-row.row-vista{background:#1c1800}
 .t-row.row-borland{background:#0a1520}
+.t-row.row-jk{background:#170c26}
 .t-row.row-idle{background:#1a1c20}
 .t-row.row-no-show{background:#1f0a12}
 .t-row.row-broken{background:#1f0a12}
@@ -48,6 +50,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .crane-badge{background:#1c1e22;color:#9aa0a8;border-color:#4a5058}
 .vista-badge{background:#1e1500;color:#EF9F27;border-color:#a06800}
 .borland-badge{background:#0d1a2e;color:#4FC3F7;border-color:#0277bd}
+.jk-badge{background:#1d0e2e;color:#B388FF;border-color:#6A3FC4}
 .idle-badge{background:#161a1e;color:#3a4a5a;border-color:#2a3540}
 .noshow-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .broken-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
@@ -82,6 +85,7 @@ const PB     = {accent:"#00E676", dim:"#00a152", badgeCls:"pb-badge"};
 const CRANE  = {accent:"#9aa0a8", dim:"#4a5058", badgeCls:"crane-badge"};
 const VISTA   = {accent:"#EF9F27", dim:"#a06800", badgeCls:"vista-badge"};
 const BORLAND = {accent:"#4FC3F7", dim:"#0277bd", badgeCls:"borland-badge"};
+const JK     = {accent:"#B388FF", dim:"#6A3FC4", badgeCls:"jk-badge"};
 const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
 const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
@@ -96,6 +100,7 @@ function palette(d){
   if(d.type==="CRANE")   return CRANE;
   if(d.type==="VISTA")   return VISTA;
   if(d.type==="BORLAND") return BORLAND;
+  if(d.type==="JK")      return JK;
   return PB;
 }
 function rowClass(d){
@@ -103,6 +108,7 @@ function rowClass(d){
     if(d.type==="CRANE")   return "row-done-crane";
     if(d.type==="VISTA")   return "row-done-vista";
     if(d.type==="BORLAND") return "row-done-borland";
+    if(d.type==="JK")      return "row-done-jk";
     return "row-done";
   }
   if(isBroken(d)) return "row-broken";
@@ -111,6 +117,7 @@ function rowClass(d){
   if(d.type==="CRANE")   return "row-active-crane";
   if(d.type==="VISTA")   return "row-vista";
   if(d.type==="BORLAND") return "row-borland";
+  if(d.type==="JK")      return "row-jk";
   return "row-active";
 }
 function nameClass(d){
@@ -148,11 +155,13 @@ function parseRows(rows){
   const drivers=[];
 
   for(const cells of rows){
-    const rutaIdx=cells.findIndex(v=>/\b(borland|vista|crane|prefill)\s+to\b|\bto\s+(venom|nash)\b/i.test(v||""));
+    // Ruta genérica: "<origen> to <destino> <hora>" — el destino cambia día a día,
+    // así que no dependemos de una lista fija (nash/venom/el arroyo/...).
+    const rutaIdx=cells.findIndex(v=>/\bto\b.*\d{1,2}\s*(am|pm)\b/i.test(v||""));
     if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":"PB";
+    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":/\bjk\b/i.test(ruta)?"JK":"PB";
 
     // Col layout: [... name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx) ...]
     const nameFull=(cells[rutaIdx-2]||"").trim();
@@ -174,7 +183,7 @@ function parseRows(rows){
       startH=h;
     }
 
-    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,qty,photos,status,type});
+    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,qty,photos,status,type,ruta});
   }
   return drivers;
 }
@@ -227,6 +236,15 @@ function render(DRIVERS){
   const crane=DRIVERS.filter(d=>d.type==="CRANE");
   const vista=DRIVERS.filter(d=>d.type==="VISTA");
   const borland=DRIVERS.filter(d=>d.type==="BORLAND");
+  const jk=DRIVERS.filter(d=>d.type==="JK");
+
+  // Label de sección derivado del texto real de la ruta (sin la hora final),
+  // así se adapta solo cuando cambie el destino en el sheet.
+  function sectionLabel(list, fallback){
+    const r=(list[0]&&list[0].ruta)||"";
+    const stripped=r.replace(/\s*\d{1,2}\s*(am|pm)\s*$/i,"").trim();
+    return stripped||fallback;
+  }
 
   let html="<div class='tick-wrap'><div class='tick-spc'></div><div class='tick-bar-t'>";
   for(let h=MIN_H;h<=MAX_H;h+=2){
@@ -253,19 +271,23 @@ function render(DRIVERS){
   }
 
   if(pb.length){
-    html+=`<div class='section-lbl'><div class='slbl-dot' style='background:#00E676'></div><span style='color:#00E676'>PB to Venom 12</span></div>`;
+    html+=`<div class='section-lbl'><div class='slbl-dot' style='background:#00E676'></div><span style='color:#00E676'>${sectionLabel(pb,"PB")}</span></div>`;
     pb.forEach(d=>{html+=row(d);});
   }
+  if(jk.length){
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#B388FF'></div><span style='color:#B388FF'>${sectionLabel(jk,"JK")}</span></div>`;
+    jk.forEach(d=>{html+=row(d);});
+  }
   if(crane.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#9aa0a8'></div><span style='color:#9aa0a8'>Crane to Venom 12</span></div>`;
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#9aa0a8'></div><span style='color:#9aa0a8'>${sectionLabel(crane,"Crane")}</span></div>`;
     crane.forEach(d=>{html+=row(d);});
   }
   if(vista.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#EF9F27'></div><span style='color:#EF9F27'>Vista to Venom</span></div>`;
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#EF9F27'></div><span style='color:#EF9F27'>${sectionLabel(vista,"Vista")}</span></div>`;
     vista.forEach(d=>{html+=row(d);});
   }
   if(borland.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#4FC3F7'></div><span style='color:#4FC3F7'>Borland to Venom</span></div>`;
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#4FC3F7'></div><span style='color:#4FC3F7'>${sectionLabel(borland,"Borland")}</span></div>`;
     borland.forEach(d=>{html+=row(d);});
   }
   document.getElementById("timeline").innerHTML=html;
@@ -292,4 +314,3 @@ setInterval(loadData,REFRESH_MS);
 </script>
 </body>
 </html>
-                                                                                                                                                                                                                                            

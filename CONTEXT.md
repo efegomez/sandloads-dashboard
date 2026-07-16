@@ -5,6 +5,8 @@ Trabajo con clientes en proyectos de software y operaciones. Uso Claude Code par
 
 ## Estructura del repo
 
+Ubicación actual: `C:\Users\efego\OneDrive\Documents\Claude\Projects\sandloads-dashboard\` (movida aquí el 2026-07-16).
+
 ```
 Claude/                          ← repo GitHub Pages (efegomez/sandloads-dashboard)
 │

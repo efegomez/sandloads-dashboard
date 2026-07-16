@@ -50,4 +50,17 @@ No hay `config.js`, `parser.js`, `dashboard.js` ni `style.css` — existieron en
 Cada día tiene una pestaña con encabezado `MM.DD` (mes.día), por ejemplo `07.16`:
 
 ```
-Driver name | Truck # | RUTA           | Qty | STATUS | PHOTO | 1        | 2        |
+Driver name | Truck # | RUTA           | Qty | STATUS | PHOTO | 1        | 2        | ...
+Yordis S.   | 2947    | PB To Nash 12am| 5   | ACTIVO |       | 1629125  | 1630427  |
+```
+
+- Las columnas numéricas (1, 2, 3...) son los IDs de foto de cada carga completada.
+- El dashboard cuenta cuántas columnas de carga tienen valor → esas son las cargas completadas.
+- El tipo de ruta (`PB`, `CRANE`, `VISTA`/`PREFILL`, `BORLAND`) se detecta por palabra clave en la columna RUTA.
+- Estados reconocidos: `ACTIVO`, `DONE` (implícito cuando fotos ≥ qty), `ROTO`/`REPAIRING`, `no contesta`, `pendiente`.
+
+## Uso
+
+- Auto-refresh cada 5 minutos (`REFRESH_MS` en el script).
+- Botón "Refrescar" para actualizar manualmente.
+- Si la pestaña de hoy no existe o no tiene choferes, muestra datos de muestra (`SAMPLE`) con un aviso.

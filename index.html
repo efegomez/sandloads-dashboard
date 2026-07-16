@@ -25,12 +25,12 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .t-row.row-done-crane{background:#1c1e22}
 .t-row.row-done-vista{background:#1e1600}
 .t-row.row-done-borland{background:#0d1a2e}
-.t-row.row-done-jk{background:#1d0e2e}
+.t-row.row-done-jk{background:#2a2205}
 .t-row.row-active{background:#151a17}
 .t-row.row-active-crane{background:#18191d}
 .t-row.row-vista{background:#1c1800}
 .t-row.row-borland{background:#0a1520}
-.t-row.row-jk{background:#170c26}
+.t-row.row-jk{background:#241d05}
 .t-row.row-idle{background:#1a1c20}
 .t-row.row-no-show{background:#1f0a12}
 .t-row.row-broken{background:#1f0a12}
@@ -50,7 +50,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .crane-badge{background:#1c1e22;color:#9aa0a8;border-color:#4a5058}
 .vista-badge{background:#1e1500;color:#EF9F27;border-color:#a06800}
 .borland-badge{background:#0d1a2e;color:#4FC3F7;border-color:#0277bd}
-.jk-badge{background:#1d0e2e;color:#B388FF;border-color:#6A3FC4}
+.jk-badge{background:#2a2205;color:#FFD54F;border-color:#B38F00}
 .idle-badge{background:#161a1e;color:#3a4a5a;border-color:#2a3540}
 .noshow-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .broken-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
@@ -85,7 +85,7 @@ const PB     = {accent:"#00E676", dim:"#00a152", badgeCls:"pb-badge"};
 const CRANE  = {accent:"#9aa0a8", dim:"#4a5058", badgeCls:"crane-badge"};
 const VISTA   = {accent:"#EF9F27", dim:"#a06800", badgeCls:"vista-badge"};
 const BORLAND = {accent:"#4FC3F7", dim:"#0277bd", badgeCls:"borland-badge"};
-const JK     = {accent:"#B388FF", dim:"#6A3FC4", badgeCls:"jk-badge"};
+const JK     = {accent:"#FFD54F", dim:"#B38F00", badgeCls:"jk-badge"};
 const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
 const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
@@ -275,7 +275,7 @@ function render(DRIVERS){
     pb.forEach(d=>{html+=row(d);});
   }
   if(jk.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#B388FF'></div><span style='color:#B388FF'>${sectionLabel(jk,"JK")}</span></div>`;
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#FFD54F'></div><span style='color:#FFD54F'>${sectionLabel(jk,"JK")}</span></div>`;
     jk.forEach(d=>{html+=row(d);});
   }
   if(crane.length){

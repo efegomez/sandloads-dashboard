@@ -22,11 +22,13 @@ GitHub Pages auto-deploys in ~1 min. Hard-refresh with Ctrl+Shift+R.
 
 ## Project 1 — Sandloads Dashboard (root)
 
-Operational dashboard for TREC sand transport. Reads data from a Google Sheets tab named `MM.DD` (e.g. `05.16`) via a published CSV URL embedded in the page.
+Operational dashboard for TREC sand transport. Single self-contained `index.html` (HTML + CSS + JS inline) that reads data from a Google Sheets tab named `MM.DD` (e.g. `07.16`) via the Sheets API, using `SHEET_ID` and `API_KEY` hardcoded in the script.
 
-**Active files in root:** `index.html`, `style.css` (and any `config.js`, `dashboard.js`, `parser.js` if present).
+**Active file: `index.html` only.** No `config.js`, `parser.js`, `dashboard.js`, or `style.css` — if those appear in the repo, they are dead code from an earlier modular version and should be deleted, not edited.
 
 `clientes/TREC/dashboard/` is an old working copy — **do not edit**; edit the root.
+
+**Security note:** the Google API key lives in plain text in `index.html`, which is in a public repo. It must be restricted (HTTP referrer + API restriction) in Google Cloud Console. Never let a key sit unrestricted here.
 
 ## Project 2 — Dispatch Bot (`clientes/TREC/dispatch-bot/`)
 
@@ -52,14 +54,4 @@ See `clientes/TREC/dispatch-bot/RUNBOOK.md` for operations and troubleshooting.
 
 Quote generator for Bloom Design Studio. Single-file React 18 app (no build, JSX pre-compiled). Lives in its own git repo (`efegomez/cotizador-bloom`), deployed to GitHub Pages.
 
-See `clientes/Bloom/Cotizador Bloom/CLAUDE.md` for full architecture. Always edit `index.html` there — never `cotizador.html` or `indexold*.html`.
-
-## Credentials
-
-Never in git. Stored at `C:\Users\efego\Boveda\` (outside repo).
-
-## Files never to commit
-
-- `clientes/TREC/dispatch-bot/.env`
-- `clientes/TREC/dispatch-bot/credentials.json`
-- Any `*.json` file named like a GCP service account key
+See `clientes/Bloom/Cotizador Bloom/CLAUDE.md`

@@ -26,11 +26,13 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .t-row.row-done-vista{background:#1e1600}
 .t-row.row-done-borland{background:#0d1a2e}
 .t-row.row-done-jk{background:#2a2205}
+.t-row.row-done-lamesa{background:#2a0e0d}
 .t-row.row-active{background:#151a17}
 .t-row.row-active-crane{background:#18191d}
 .t-row.row-vista{background:#1c1800}
 .t-row.row-borland{background:#0a1520}
 .t-row.row-jk{background:#241d05}
+.t-row.row-lamesa{background:#230d0c}
 .t-row.row-idle{background:#1a1c20}
 .t-row.row-no-show{background:#1f0a12}
 .t-row.row-broken{background:#1f0a12}
@@ -51,6 +53,7 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .vista-badge{background:#1e1500;color:#EF9F27;border-color:#a06800}
 .borland-badge{background:#0d1a2e;color:#4FC3F7;border-color:#0277bd}
 .jk-badge{background:#2a2205;color:#FFD54F;border-color:#B38F00}
+.lamesa-badge{background:#2a0e0d;color:#E53935;border-color:#8C1D1B}
 .idle-badge{background:#161a1e;color:#3a4a5a;border-color:#2a3540}
 .noshow-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .broken-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
@@ -86,6 +89,7 @@ const CRANE  = {accent:"#9aa0a8", dim:"#4a5058", badgeCls:"crane-badge"};
 const VISTA   = {accent:"#EF9F27", dim:"#a06800", badgeCls:"vista-badge"};
 const BORLAND = {accent:"#4FC3F7", dim:"#0277bd", badgeCls:"borland-badge"};
 const JK     = {accent:"#FFD54F", dim:"#B38F00", badgeCls:"jk-badge"};
+const LAMESA = {accent:"#E53935", dim:"#8C1D1B", badgeCls:"lamesa-badge"};
 const IDLE   = {accent:"#3a4a5a", dim:"#2a3540", badgeCls:"idle-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
 const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
@@ -101,6 +105,7 @@ function palette(d){
   if(d.type==="VISTA")   return VISTA;
   if(d.type==="BORLAND") return BORLAND;
   if(d.type==="JK")      return JK;
+  if(d.type==="LAMESA")  return LAMESA;
   return PB;
 }
 function rowClass(d){
@@ -109,6 +114,7 @@ function rowClass(d){
     if(d.type==="VISTA")   return "row-done-vista";
     if(d.type==="BORLAND") return "row-done-borland";
     if(d.type==="JK")      return "row-done-jk";
+    if(d.type==="LAMESA")  return "row-done-lamesa";
     return "row-done";
   }
   if(isBroken(d)) return "row-broken";
@@ -118,6 +124,7 @@ function rowClass(d){
   if(d.type==="VISTA")   return "row-vista";
   if(d.type==="BORLAND") return "row-borland";
   if(d.type==="JK")      return "row-jk";
+  if(d.type==="LAMESA")  return "row-lamesa";
   return "row-active";
 }
 function nameClass(d){
@@ -161,7 +168,7 @@ function parseRows(rows){
     if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":/\bjk\b/i.test(ruta)?"JK":"PB";
+    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":/\bjk\b/i.test(ruta)?"JK":/lamesa/i.test(ruta)?"LAMESA":"PB";
 
     // Col layout: [... name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx) ...]
     const nameFull=(cells[rutaIdx-2]||"").trim();
@@ -237,6 +244,7 @@ function render(DRIVERS){
   const vista=DRIVERS.filter(d=>d.type==="VISTA");
   const borland=DRIVERS.filter(d=>d.type==="BORLAND");
   const jk=DRIVERS.filter(d=>d.type==="JK");
+  const lamesa=DRIVERS.filter(d=>d.type==="LAMESA");
 
   // Label de sección derivado del texto real de la ruta (sin la hora final),
   // así se adapta solo cuando cambie el destino en el sheet.
@@ -289,6 +297,10 @@ function render(DRIVERS){
   if(borland.length){
     html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#4FC3F7'></div><span style='color:#4FC3F7'>${sectionLabel(borland,"Borland")}</span></div>`;
     borland.forEach(d=>{html+=row(d);});
+  }
+  if(lamesa.length){
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#E53935'></div><span style='color:#E53935'>${sectionLabel(lamesa,"Lamesa")}</span></div>`;
+    lamesa.forEach(d=>{html+=row(d);});
   }
   document.getElementById("timeline").innerHTML=html;
 

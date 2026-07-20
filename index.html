@@ -164,7 +164,9 @@ function parseRows(rows){
   for(const cells of rows){
     // Ruta genérica: "<origen> to <destino> <hora>" — el destino cambia día a día,
     // así que no dependemos de una lista fija (nash/venom/el arroyo/...).
-    const rutaIdx=cells.findIndex(v=>/\bto\b.*\d{1,2}\s*(am|pm)\b/i.test(v||""));
+    // "Now" también cuenta como hora válida: choferes reasignados a una ruta nueva
+    // el mismo día (terminaron una vuelta y arrancan otra ya, sin hora programada).
+    const rutaIdx=cells.findIndex(v=>/\bto\b.*(\d{1,2}\s*(am|pm)|\bnow\b)/i.test(v||""));
     if(rutaIdx<2) continue;
 
     const ruta=cells[rutaIdx]||"";
@@ -182,6 +184,7 @@ function parseRows(rows){
 
     const hm=ruta.match(/(\d{1,2})\s*(am|pm)/i);
     let startH=0;
+    const isNow=!hm && /\bnow\b/i.test(ruta);
     if(hm){
       let h=parseInt(hm[1]);
       const ap=hm[2].toLowerCase();
@@ -190,8 +193,14 @@ function parseRows(rows){
       startH=h;
     }
 
-    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,qty,photos,status,type,ruta});
+    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,qty,photos,status,type,ruta,isNow});
   }
+
+  // Las rutas "Now" (sin hora programada) se ubican a continuación de la
+  // última hora real del día, para que queden al final del timeline.
+  const realHours=drivers.filter(d=>!d.isNow).map(d=>d.startH);
+  const lastH=realHours.length?Math.max(...realHours):0;
+  drivers.filter(d=>d.isNow).forEach(d=>{ d.startH=Math.min(MAX_H,lastH+1); });
   return drivers;
 }
 

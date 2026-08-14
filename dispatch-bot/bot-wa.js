@@ -96,7 +96,7 @@ async function notificarOwner(text) {
   }
 }
 
-// ─── CRON NOCTURNO (10 PM Colombia) ─────────────────────────
+// ─── CRON NOCTURNO (10 PM Colombia) ─────────────────────────────
 cron.schedule('0 22 * * *', async () => {
   try {
     await copiarProgramacionManana(SPREADSHEET_ID, notificarOwner);
@@ -180,12 +180,8 @@ async function procesarFoto(msg, groupId, downloadFn) {
 
   if (resultado.tipo === 'IGNORAR') {
     console.log(`Imagen ignorada (${nombreLog}): no es Newmile`);
-    return;
-  }
-
-  if (resultado.tipo === 'VIEJA') {
-    console.log(`Captura vieja (${nombreLog}): fecha no corresponde a hoy`);
-    await notificarOwner(`Captura vieja de ${nombreLog} (+${senderPhone}). No se registro.`);
+    const quien = WA_MAP[senderPhone] || `+${senderPhone}`;
+    await notificarOwner(`Imagen no-Newmile de ${quien}. No se registro automaticamente.`);
     return;
   }
 
@@ -204,7 +200,7 @@ async function procesarFoto(msg, groupId, downloadFn) {
   await procesarFotoRegistrada(groupId, senderPhone, nombrePrincipal, resultado);
 }
 
-// ─── HANDLER: REGISTRO POR OWNER (mensaje privado) ──────────
+// ─── HANDLER: REGISTRO POR OWNER (mensaje privado) ──────────────
 async function procesarRegistroOwner(texto) {
   // Formato: "registrar 573001234567 NombreExacto"
   const partes = texto.replace(/^registrar\s+/i, '').trim().split(/\s+/);
@@ -261,7 +257,7 @@ async function procesarRegistroOwner(texto) {
   }
 }
 
-// ─── INICIAR BOT ─────────────────────────────────────────────
+// ─── INICIAR BOT ─────────────────────────────────────────────────
 async function iniciarBot() {
   const {
     default: makeWASocket,
@@ -363,7 +359,7 @@ healthServer.on('error', (err) => {
 });
 healthServer.listen(PORT, () => console.log(`Health check en puerto ${PORT}`));
 
-// ─── ARRANQUE ────────────────────────────────────────────────
+// ─── ARRANQUE ──────────────────────────────────────────────────
 process.once('SIGINT',  () => process.exit(0));
 process.once('SIGTERM', () => process.exit(0));
 

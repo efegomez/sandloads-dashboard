@@ -7,7 +7,9 @@ Crear bot-wa.js con Baileys para el grupo de WhatsApp que:
 - Registre la carga en Google Sheets (hoja TEST)
 - Responda en el grupo confirmando el registro o indicando duplicado
 - Permita registro de choferes por número de teléfono WA
-- No reemplaza el bot de Telegram — opera en paralelo (modo test)
+- Reemplaza al bot de Telegram — todo el flujo opera por WA
+- Incluye el cron nocturno (10 PM Bogotá) de copia de programación
+- Notificaciones al owner (dispatcher) vía mensaje WA directo
 
 ## Context
 
@@ -22,7 +24,7 @@ El dispatch-bot de Telegram (`bot.js`) implementa el flujo completo:
 - **Directorio de choferes**: hoja `Choferes!A2:D100` — columnas: nombre, ?, principal, telegramId
 - **Identificación de chofer**: `TELEGRAM_MAP[telegramUserId] → nombrePrincipal`
 - **Logging**: `writeLog()` a archivos diarios en `logs/`
-- **Cron 10 PM**: copia programación de 2026 → TEST (permanece en bot.js)
+- **Cron 10 PM**: copia programación de 2026 → TEST — debe incluirse en bot-wa.js
 
 ### Cambio clave para WA
 En Telegram el ID del remitente es `ctx.from.id`. En Baileys es el número de teléfono extraído del JID del remitente en grupo: `msg.key.participant` → `573001234567@s.whatsapp.net` → número `573001234567`.
@@ -71,9 +73,11 @@ El mapeo de choferes necesita una **columna nueva "WA"** en la hoja `Choferes` (
    i. **Flujo registro**: extraer nombre del texto → buscar en hoja `Choferes` → guardar número en columna E → actualizar `WA_MAP` → reply confirmación
    j. Reconexión automática con backoff en caso de desconexión no intencional
 
-4. **Crear `fly-wa.toml`**: app separada (ej. `dispatch-bot-wa`), mismas env vars excepto sin `TELEGRAM_BOT_TOKEN`, agregar `WA_GROUP_IDS` y `OWNER_WA_NUMBER`, montar volumen para `auth_wa/` (persistencia de sesión WA)
+4. **Agregar cron nocturno en `bot-wa.js`**: misma lógica de `copiarProgramacionManana()` de `bot.js`, pero las notificaciones al owner van vía `sock.sendMessage(OWNER_WA_NUMBER, { text: ... })` en lugar de `bot.telegram.sendMessage`. Cron schedule: `0 22 * * *` timezone `America/Bogota`.
 
-5. **NO modificar `bot.js`** — el bot de Telegram sigue intacto
+5. **Crear `fly-wa.toml`**: app separada (ej. `dispatch-bot-wa`), sin `TELEGRAM_BOT_TOKEN`, con `WA_GROUP_IDS` y `OWNER_WA_NUMBER`, volumen para `auth_wa/`
+
+6. **NO modificar `bot.js`** — queda como referencia histórica, no se ejecuta
 
 ## Edge cases
 
@@ -103,14 +107,13 @@ El mapeo de choferes necesita una **columna nueva "WA"** en la hoja `Choferes` (
 - [ ] AC-07: Imagen que no es Newmile (ticket papel, etc.) → sin reply, sin escritura en sheet
 - [ ] AC-08: Chofer no registrado envía foto → bot responde pidiéndole registrarse; owner recibe notificación con el número WA
 - [ ] AC-09: `shared.js` exporta los helpers (`getGoogleSheets`, `leerFilasHoy`, `anotarEnSheet`, `encontrarChofer`, `colIdxToLetra`, `writeLog`); `bot-wa.js` los importa en lugar de duplicar código
-- [ ] AC-10: `fly-wa.toml` define una app con nombre distinto al bot de Telegram; incluye mount de volumen para `auth_wa/`
-- [ ] AC-11: `bot.js` (Telegram) no es modificado
+- [ ] AC-10: `fly-wa.toml` define una app separada con nombre distinto; incluye mount de volumen para `auth_wa/`
+- [ ] AC-11: Cron `0 22 * * *` (Bogotá) en `bot-wa.js` copia la programación del día siguiente de Sandloads 2026 → TEST y notifica al owner vía mensaje WA
+- [ ] AC-12: `bot.js` (Telegram) no es modificado
 
 ## Out of scope
 
-- Cron nocturno de copia de programación (permanece solo en bot.js Telegram)
 - Manejo de mensajes de audio en WA (feature separado)
 - Shorthand de 4 dígitos → 7 dígitos (feature separado, definido en conversación)
-- Notificaciones al owner vía Telegram desde el bot WA
 - Deploy efectivo a Fly.io (se hace manualmente tras validar)
 - Tests automatizados

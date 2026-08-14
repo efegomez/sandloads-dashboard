@@ -88,7 +88,9 @@ async function notificarOwner(text) {
     return;
   }
   try {
-    await sendWAMessage(`${OWNER_WA_NUMBER}@s.whatsapp.net`, text);
+    // Siempre envía al owner aunque DRY_RUN esté activo — es mensaje privado, no al grupo
+    if (!globalSock) { console.error('[WA] Socket no disponible para notificar owner'); return; }
+    await globalSock.sendMessage(`${OWNER_WA_NUMBER}@s.whatsapp.net`, { text });
   } catch (e) {
     console.error('[OWNER] Error enviando notificación:', e.message);
   }

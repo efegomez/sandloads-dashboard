@@ -108,13 +108,6 @@ function getAnthropic() {
 async function extraerDatosImagen(imagenBase64, mimeType) {
   const anthropic = getAnthropic();
 
-  const fechaHoy = new Date().toLocaleDateString('es-CO', {
-    timeZone: 'America/Bogota',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }); // ej: 14/08/2026
-
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 100,
@@ -127,7 +120,7 @@ async function extraerDatosImagen(imagenBase64, mimeType) {
         },
         {
           type: 'text',
-          text: `Hoy es ${fechaHoy} (Colombia).\n\nAnaliza esta imagen de un chofer de carga de arena.\n\n1. Verifica si es pantalla Newmile (app de asignación de carga):\n   Señales: interfaz de app móvil, botones "Aceptar Carga", "Descargado", número de carga de 7 dígitos.\n   → Si la fecha visible en la captura NO es de hoy (${fechaHoy}), responde: VIEJA\n   → Si es de hoy, extrae el número de 7 dígitos: NEWMILE|1234567\n\n2. Cualquier otra imagen (tickets de papel, SandCo, Damp SandCo, BOL, etc.):\n   → Responde: IGNORAR\n\nResponde SOLO en el formato indicado, sin texto adicional.`,
+          text: `Analiza esta imagen de un chofer de carga de arena.\n\n1. Si es pantalla de la app Newmile (señales: interfaz móvil, botones "Aceptar Carga" o "Descargado", número de carga de 7 dígitos):\n   → Extrae el número de 7 dígitos y responde: NEWMILE|1234567\n\n2. Cualquier otra imagen (tickets de papel, SandCo, Damp SandCo, BOL, fotos de camión, etc.):\n   → Responde: IGNORAR\n\nResponde SOLO en el formato indicado, sin texto adicional.`,
         },
       ],
     }],
@@ -136,9 +129,6 @@ async function extraerDatosImagen(imagenBase64, mimeType) {
   const parts = texto.split('|');
   if (parts[0] === 'NEWMILE' && /^\d{7}$/.test(parts[1])) {
     return { tipo: 'NEWMILE', numero: parts[1] };
-  }
-  if (texto === 'VIEJA') {
-    return { tipo: 'VIEJA' };
   }
   return { tipo: 'IGNORAR' };
 }

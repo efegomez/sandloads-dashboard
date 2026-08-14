@@ -165,7 +165,8 @@ async function procesarFotosPendientes(phone) {
 
 // ─── HANDLER: FOTO EN GRUPO ─────────────────────────────────
 async function procesarFoto(msg, groupId, downloadFn) {
-  const senderJid   = msg.key.participant || msg.key.remoteJid;
+  // msg.participant resuelve @lid → número real; key.participant puede venir vacío en WA nuevo
+  const senderJid   = msg.participant || msg.key.participant || msg.key.remoteJid;
   const senderPhone = phoneFromJid(senderJid);
   const nombreLog   = WA_MAP[senderPhone] || `wa_${senderPhone}`;
   console.log(`Imagen de ${nombreLog} en grupo ${groupId}`);

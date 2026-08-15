@@ -54,13 +54,11 @@ async function cargarDirectorioWA() {
     WA_MAP        = {};
     NAME_TO_PHONE = {};
     for (const row of rows) {
-      const nombre    = (row[0] || '').trim();
-      const principal = (row[2] || '').trim() || nombre;
-      const phone     = (row[COL_WA_PHONE] || '').trim();
+      const nombre = (row[1] || '').trim(); // Columna B = Driver name
+      const phone  = (row[COL_WA_PHONE] || '').trim(); // Columna E = WA LID
       if (phone && nombre) {
-        WA_MAP[phone]                          = principal.toLowerCase();
-        NAME_TO_PHONE[principal.toLowerCase()] = phone;
-        NAME_TO_PHONE[nombre.toLowerCase()]    = phone;
+        WA_MAP[phone]                      = nombre.toLowerCase();
+        NAME_TO_PHONE[nombre.toLowerCase()] = phone;
       }
     }
     console.log(`Directorio WA cargado: ${Object.keys(WA_MAP).length} choferes registrados.`);
@@ -224,9 +222,9 @@ async function procesarRegistroOwner(texto) {
     let principal     = '';
 
     for (let i = 0; i < rows.length; i++) {
-      if ((rows[i][0] || '').toLowerCase().trim() === nombreLower) {
+      if ((rows[i][1] || '').toLowerCase().trim() === nombreLower) { // Columna B
         rowIndex  = i + 2;
-        principal = (rows[i][2] || rows[i][0] || '').trim();
+        principal = (rows[i][1] || '').trim();
         break;
       }
     }
@@ -243,7 +241,7 @@ async function procesarRegistroOwner(texto) {
       requestBody: { values: [[phone]] },
     });
 
-    WA_MAP[phone]                        = principal.toLowerCase();
+    WA_MAP[phone]                      = principal.toLowerCase();
     NAME_TO_PHONE[principal.toLowerCase()] = phone;
     NAME_TO_PHONE[nombre.toLowerCase()]    = phone;
 

@@ -23,6 +23,7 @@ const SPREADSHEET_ID    = process.env.SPREADSHEET_ID;
 const CHOFERES_SHEET_ID = process.env.CHOFERES_SHEET_ID || SPREADSHEET_ID;
 const TARGET_GROUP_IDS  = (process.env.WA_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 const OWNER_WA_NUMBER   = process.env.OWNER_WA_NUMBER; // ej: 573001234567 (sin + ni @)
+const OWNER_WA_LID      = process.env.OWNER_WA_LID;    // LID del owner (formato nuevo WA)
 const PORT              = process.env.PORT || 3000;
 const DRY_RUN           = process.env.DRY_RUN === 'true';
 
@@ -94,7 +95,7 @@ async function notificarOwner(text) {
   }
 }
 
-// ─── CRON NOCTURNO (10 PM Colombia) ─────────────────────────────
+// ─── CRON NOCTURNO (10 PM Colombia) ─────────────────────────
 cron.schedule('0 22 * * *', async () => {
   try {
     await copiarProgramacionManana(SPREADSHEET_ID, notificarOwner);
@@ -183,6 +184,12 @@ async function procesarFoto(msg, groupId, downloadFn) {
     return;
   }
 
+  if (resultado.tipo === 'VIEJA') {
+    console.log(`Captura vieja (${nombreLog}): fecha no corresponde a hoy`);
+    await notificarOwner(`Captura vieja de ${nombreLog} (+${senderPhone}). No se registro.`);
+    return;
+  }
+
   const nombrePrincipal = WA_MAP[senderPhone];
   if (!nombrePrincipal) {
     // Chofer desconocido — encolar y notificar al owner sin tocar el grupo
@@ -198,7 +205,7 @@ async function procesarFoto(msg, groupId, downloadFn) {
   await procesarFotoRegistrada(groupId, senderPhone, nombrePrincipal, resultado);
 }
 
-// ─── HANDLER: REGISTRO POR OWNER (mensaje privado) ──────────────
+// ─── HANDLER: REGISTRO POR OWNER (mensaje privado) ──────────
 async function procesarRegistroOwner(texto) {
   // Formato: "registrar 573001234567 NombreExacto"
   const partes = texto.replace(/^registrar\s+/i, '').trim().split(/\s+/);
@@ -255,7 +262,7 @@ async function procesarRegistroOwner(texto) {
   }
 }
 
-// ─── INICIAR BOT ─────────────────────────────────────────────────
+// ─── INICIAR BOT ─────────────────────────────────────────────
 async function iniciarBot() {
   const {
     default: makeWASocket,
@@ -302,6 +309,7 @@ async function iniciarBot() {
   });
 
   const ownerJid = OWNER_WA_NUMBER ? `${OWNER_WA_NUMBER}@s.whatsapp.net` : null;
+  const ownerLid = OWNER_WA_LID ? `${OWNER_WA_LID}@lid` : null;
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
@@ -317,7 +325,8 @@ async function iniciarBot() {
         ).trim();
 
         // Mensajes privados del owner — comandos de registro
-        if (ownerJid && remoteJid === ownerJid) {
+        const isOwner = (ownerJid && remoteJid === ownerJid) || (ownerLid && remoteJid === ownerLid);
+        if (isOwner) {
           if (/^registrar\s+\d+\s+\S/i.test(texto)) {
             await procesarRegistroOwner(texto);
           }
@@ -357,7 +366,7 @@ healthServer.on('error', (err) => {
 });
 healthServer.listen(PORT, () => console.log(`Health check en puerto ${PORT}`));
 
-// ─── ARRANQUE ──────────────────────────────────────────────────
+// ─── ARRANQUE ────────────────────────────────────────────────
 process.once('SIGINT',  () => process.exit(0));
 process.once('SIGTERM', () => process.exit(0));
 

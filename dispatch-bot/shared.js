@@ -84,12 +84,38 @@ async function anotarEnSheet(tabName, sheetRowIdx, rowData, numeroCarga, spreads
   const rowNum   = sheetRowIdx + 1;
   const range    = `'${tabName}'!${colLetra}${rowNum}`;
   const numFoto  = colIdx - COL_PHOTO_FIRST + 1;
+
   await sheets.spreadsheets.values.update({
     spreadsheetId: sid,
     range,
     valueInputOption: 'RAW',
     requestBody: { values: [[numeroCarga]] },
   });
+
+  // Alinear a la derecha la celda recién escrita
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: sid });
+  const sheetObj = (meta.data.sheets || []).find(s => s.properties.title === tabName);
+  if (sheetObj) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sid,
+      requestBody: {
+        requests: [{
+          repeatCell: {
+            range: {
+              sheetId:          sheetObj.properties.sheetId,
+              startRowIndex:    sheetRowIdx,
+              endRowIndex:      sheetRowIdx + 1,
+              startColumnIndex: colIdx,
+              endColumnIndex:   colIdx + 1,
+            },
+            cell:   { userEnteredFormat: { horizontalAlignment: 'RIGHT' } },
+            fields: 'userEnteredFormat.horizontalAlignment',
+          },
+        }],
+      },
+    });
+  }
+
   return numFoto;
 }
 

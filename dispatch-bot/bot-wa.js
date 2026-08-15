@@ -22,7 +22,7 @@ const {
 const SPREADSHEET_ID    = process.env.SPREADSHEET_ID;
 const CHOFERES_SHEET_ID = process.env.CHOFERES_SHEET_ID || SPREADSHEET_ID;
 const TARGET_GROUP_IDS  = (process.env.WA_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
-const OWNER_WA_NUMBER   = process.env.OWNER_WA_NUMBER; // ej: 573001234567 (sin + ni @)
+const OWNER_WA_NUMBER   = process.env.OWNER_WA_NUMBER; // ej: 50374856431 (sin + ni @)
 const OWNER_WA_LID      = process.env.OWNER_WA_LID;    // LID del owner (formato nuevo WA)
 const PORT              = process.env.PORT || 3000;
 const DRY_RUN           = process.env.DRY_RUN === 'true';
@@ -37,11 +37,11 @@ console.log   = (...a) => { _log(...a);   writeLog('INFO',  a); };
 console.error = (...a) => { _error(...a); writeLog('ERROR', a); };
 
 // ─── DIRECTORIO WA ──────────────────────────────────────────
-let WA_MAP        = {}; // phone → nombrePrincipal (lowercase)
-let NAME_TO_PHONE = {}; // nombre_lower → phone
+let WA_MAP        = {}; // lid → nombrePrincipal (lowercase)
+let NAME_TO_LID   = {}; // nombre_lower → lid
 
 // Fotos recibidas de choferes no registrados, pendientes de asignación
-// { phone: [{ groupId, resultado }] }
+// { lid: [{ groupId, resultado }] }
 const pendingPhotos = {};
 
 async function cargarDirectorioWA() {
@@ -52,14 +52,14 @@ async function cargarDirectorioWA() {
       range: 'Choferes!A2:E100',
     });
     const rows = res.data.values || [];
-    WA_MAP        = {};
-    NAME_TO_PHONE = {};
+    WA_MAP      = {};
+    NAME_TO_LID = {};
     for (const row of rows) {
       const nombre = (row[1] || '').trim(); // Columna B = Driver name
-      const phone  = (row[COL_WA_PHONE] || '').trim(); // Columna E = WA LID
-      if (phone && nombre) {
-        WA_MAP[phone]                      = nombre.toLowerCase();
-        NAME_TO_PHONE[nombre.toLowerCase()] = phone;
+      const lid    = (row[COL_WA_PHONE] || '').trim(); // Columna E = WA LID
+      if (lid && nombre) {
+        WA_MAP[lid]                        = nombre.toLowerCase();
+        NAME_TO_LID[nombre.toLowerCase()]  = lid;
       }
     }
     console.log(`Directorio WA cargado: ${Object.keys(WA_MAP).length} choferes registrados.`);
@@ -69,9 +69,11 @@ async function cargarDirectorioWA() {
 }
 
 // ─── HELPERS ────────────────────────────────────────────────
-function phoneFromJid(jid) {
+function lidFromJid(jid) {
   return (jid || '').split('@')[0].split(':')[0];
 }
+
+const normalizar = s => s.toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 let globalSock = null;
 
@@ -107,7 +109,7 @@ cron.schedule('0 22 * * *', async () => {
 console.log('Cron nocturno activo — copia programacion a las 10 PM (Bogota).');
 
 // ─── PROCESAR FOTO CONOCIDA ──────────────────────────────────
-async function procesarFotoRegistrada(groupId, senderPhone, nombrePrincipal, resultado) {
+async function procesarFotoRegistrada(groupId, senderLid, nombrePrincipal, resultado) {
   let driverRows, tabName;
   try {
     ({ driverRows, tabName } = await leerFilasHoy(SPREADSHEET_ID));
@@ -146,30 +148,29 @@ async function procesarFotoRegistrada(groupId, senderPhone, nombrePrincipal, res
 }
 
 // ─── PROCESAR FOTOS PENDIENTES TRAS REGISTRO ─────────────────
-async function procesarFotosPendientes(phone) {
-  const pending = pendingPhotos[phone] || [];
-  delete pendingPhotos[phone];
+async function procesarFotosPendientes(lid) {
+  const pending = pendingPhotos[lid] || [];
+  delete pendingPhotos[lid];
   if (!pending.length) return;
 
-  const nombrePrincipal = WA_MAP[phone];
+  const nombrePrincipal = WA_MAP[lid];
   console.log(`Procesando ${pending.length} foto(s) pendiente(s) de ${nombrePrincipal}`);
 
   for (const { groupId, resultado } of pending) {
     try {
-      await procesarFotoRegistrada(groupId, phone, nombrePrincipal, resultado);
+      await procesarFotoRegistrada(groupId, lid, nombrePrincipal, resultado);
     } catch (e) {
-      console.error(`Error procesando foto pendiente de ${phone}:`, e.message);
-      await notificarOwner(`Error procesando foto pendiente de +${phone}: ${e.message}`);
+      console.error(`Error procesando foto pendiente de ${lid}:`, e.message);
+      await notificarOwner(`Error procesando foto pendiente de ${lid}: ${e.message}`);
     }
   }
 }
 
 // ─── HANDLER: FOTO EN GRUPO ─────────────────────────────────
 async function procesarFoto(msg, groupId, downloadFn) {
-  // msg.participant resuelve @lid → número real; key.participant puede venir vacío en WA nuevo
-  const senderJid   = msg.participant || msg.key.participant || msg.key.remoteJid;
-  const senderPhone = phoneFromJid(senderJid);
-  const nombreLog   = WA_MAP[senderPhone] || `wa_${senderPhone}`;
+  const senderJid = msg.participant || msg.key.participant || msg.key.remoteJid;
+  const senderLid = lidFromJid(senderJid);
+  const nombreLog = WA_MAP[senderLid] || `wa_${senderLid}`;
   console.log(`Imagen de ${nombreLog} en grupo ${groupId}`);
 
   const buffer    = await downloadFn(msg, 'buffer', {});
@@ -179,57 +180,50 @@ async function procesarFoto(msg, groupId, downloadFn) {
 
   if (resultado.tipo === 'IGNORAR') {
     console.log(`Imagen ignorada (${nombreLog}): no es Newmile`);
-    const quien = WA_MAP[senderPhone] || `+${senderPhone}`;
+    const quien = WA_MAP[senderLid] || senderLid;
     await notificarOwner(`Imagen no-Newmile de ${quien}. No se registro automaticamente.`);
     return;
   }
 
-  if (resultado.tipo === 'VIEJA') {
-    console.log(`Captura vieja (${nombreLog}): fecha no corresponde a hoy`);
-    await notificarOwner(`Captura vieja de ${nombreLog} (+${senderPhone}). No se registro.`);
-    return;
-  }
-
-  const nombrePrincipal = WA_MAP[senderPhone];
+  const nombrePrincipal = WA_MAP[senderLid];
   if (!nombrePrincipal) {
-    // Chofer desconocido — encolar y notificar al owner sin tocar el grupo
-    if (!pendingPhotos[senderPhone]) pendingPhotos[senderPhone] = [];
-    pendingPhotos[senderPhone].push({ groupId, resultado });
+    if (!pendingPhotos[senderLid]) pendingPhotos[senderLid] = [];
+    pendingPhotos[senderLid].push({ groupId, resultado });
     await notificarOwner(
-      `Foto de +${senderPhone} (sin registrar). Carga ${resultado.numero}.\nResponde:\nregistrar ${senderPhone} NombreExacto`
+      `Foto de ${senderLid} (sin registrar). Carga ${resultado.numero}.\nResponde:\nregistrar ${senderLid} NombreExacto`
     );
-    console.log(`Foto encolada de +${senderPhone} — pendiente de registro por owner.`);
+    console.log(`Foto encolada de ${senderLid} — pendiente de registro por owner.`);
     return;
   }
 
-  await procesarFotoRegistrada(groupId, senderPhone, nombrePrincipal, resultado);
+  await procesarFotoRegistrada(groupId, senderLid, nombrePrincipal, resultado);
 }
 
 // ─── HANDLER: REGISTRO POR OWNER (mensaje privado) ──────────
 async function procesarRegistroOwner(texto) {
-  // Formato: "registrar 573001234567 NombreExacto"
+  // Formato: "registrar LID NombreExacto"
   const partes = texto.replace(/^registrar\s+/i, '').trim().split(/\s+/);
-  const phone  = partes[0];
+  const lid    = partes[0];
   const nombre = partes.slice(1).join(' ').trim();
 
-  if (!phone || !nombre) {
-    await notificarOwner('Formato: registrar TELEFONO NombreExacto\nEjemplo: registrar 573001234567 Juan Perez');
+  if (!lid || !nombre) {
+    await notificarOwner('Formato: registrar LID NombreExacto\nEjemplo: registrar 72838417518835 Yasmani Rodriguez');
     return;
   }
 
   try {
-    const sheets      = await getGoogleSheets();
-    const res         = await sheets.spreadsheets.values.get({
+    const sheets = await getGoogleSheets();
+    const res    = await sheets.spreadsheets.values.get({
       spreadsheetId: CHOFERES_SHEET_ID,
       range: 'Choferes!A2:E100',
     });
-    const rows        = res.data.values || [];
-    const nombreLower = nombre.toLowerCase();
-    let rowIndex      = -1;
-    let principal     = '';
+    const rows      = res.data.values || [];
+    const nombreNorm = normalizar(nombre);
+    let rowIndex     = -1;
+    let principal    = '';
 
     for (let i = 0; i < rows.length; i++) {
-      if ((rows[i][1] || '').toLowerCase().trim() === nombreLower) { // Columna B
+      if (normalizar(rows[i][1] || '') === nombreNorm) {
         rowIndex  = i + 2;
         principal = (rows[i][1] || '').trim();
         break;
@@ -245,17 +239,17 @@ async function procesarRegistroOwner(texto) {
       spreadsheetId: CHOFERES_SHEET_ID,
       range: `Choferes!E${rowIndex}`,
       valueInputOption: 'RAW',
-      requestBody: { values: [[phone]] },
+      requestBody: { values: [[lid]] },
     });
 
-    WA_MAP[phone]                      = principal.toLowerCase();
-    NAME_TO_PHONE[principal.toLowerCase()] = phone;
-    NAME_TO_PHONE[nombre.toLowerCase()]    = phone;
+    WA_MAP[lid]                        = principal.toLowerCase();
+    NAME_TO_LID[principal.toLowerCase()] = lid;
+    NAME_TO_LID[nombreNorm]              = lid;
 
-    console.log(`Registrado WA (owner): ${nombre} → +${phone}`);
-    await notificarOwner(`Registrado: ${nombre} (+${phone})`);
+    console.log(`Registrado WA (owner): ${nombre} → ${lid}`);
+    await notificarOwner(`Registrado: ${nombre} (${lid})`);
 
-    await procesarFotosPendientes(phone);
+    await procesarFotosPendientes(lid);
   } catch (e) {
     console.error('Error en registro owner:', e.message);
     await notificarOwner(`Error al registrar: ${e.message}`);
@@ -310,7 +304,6 @@ async function iniciarBot() {
 
   const ownerJid = OWNER_WA_NUMBER ? `${OWNER_WA_NUMBER}@s.whatsapp.net` : null;
   const ownerLid = OWNER_WA_LID ? `${OWNER_WA_LID}@lid` : null;
-  console.log(`[CONFIG] ownerJid=${ownerJid} ownerLid=${ownerLid} DRY_RUN=${DRY_RUN}`);
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
@@ -324,15 +317,10 @@ async function iniciarBot() {
           msg.message.extendedTextMessage?.text || ''
         ).trim();
 
-        // Debug: loguear todo mensaje entrante privado (no grupos)
-        if (!remoteJid.endsWith('@g.us')) {
-          console.log(`[MSG] remoteJid=${remoteJid} fromMe=${msg.key.fromMe} texto="${texto.slice(0,40)}"`);
-        }
-
-        // Comandos del owner — se procesan aunque fromMe=true (el bot corre en la misma cuenta)
+        // Comandos del owner — se procesan aunque fromMe=true
         const isOwner = (ownerJid && remoteJid === ownerJid) || (ownerLid && remoteJid === ownerLid);
         if (isOwner) {
-          if (/^registrar\s+\d+\s+\S/i.test(texto)) {
+          if (/^registrar\s+\S+\s+\S/i.test(texto)) {
             await procesarRegistroOwner(texto);
           }
           continue;
@@ -345,13 +333,9 @@ async function iniciarBot() {
         if (!remoteJid.endsWith('@g.us')) continue;
 
         // Filtrar por grupo permitido
-        if (TARGET_GROUP_IDS.length && !TARGET_GROUP_IDS.includes(remoteJid)) {
-          console.log(`[GRUPO NO PERMITIDO] ${remoteJid}`);
-          continue;
-        }
+        if (TARGET_GROUP_IDS.length && !TARGET_GROUP_IDS.includes(remoteJid)) continue;
 
         const msgType = Object.keys(msg.message)[0];
-
         if (msgType === 'imageMessage') {
           await procesarFoto(msg, remoteJid, downloadMediaMessage);
         }

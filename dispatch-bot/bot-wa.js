@@ -316,7 +316,6 @@ async function iniciarBot() {
     for (const msg of messages) {
       try {
         if (!msg.message) continue;
-        if (msg.key.fromMe) continue;
 
         const remoteJid = msg.key.remoteJid || '';
         const texto = (
@@ -324,7 +323,7 @@ async function iniciarBot() {
           msg.message.extendedTextMessage?.text || ''
         ).trim();
 
-        // Mensajes privados del owner — comandos de registro
+        // Comandos del owner — se procesan aunque fromMe=true (el bot corre en la misma cuenta)
         const isOwner = (ownerJid && remoteJid === ownerJid) || (ownerLid && remoteJid === ownerLid);
         if (isOwner) {
           if (/^registrar\s+\d+\s+\S/i.test(texto)) {
@@ -332,6 +331,9 @@ async function iniciarBot() {
           }
           continue;
         }
+
+        // Ignorar mensajes propios del bot en grupos/otros
+        if (msg.key.fromMe) continue;
 
         // Solo grupos
         if (!remoteJid.endsWith('@g.us')) continue;

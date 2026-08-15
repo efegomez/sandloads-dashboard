@@ -13,7 +13,7 @@ const { getTodayKey, getTomorrowKey } = require('./date-keys');
 const COL_DRIVER      = 2;
 const COL_TRUCK       = 3;
 const COL_RUTA        = 4;
-const COL_PHOTO_FIRST = 8;
+const COL_PHOTO_FIRST = 9;
 const SHEET_ID_2026   = '1FlPvLr6eHExUb14CqPtPTUQmlHgUokIjLHFsidWzk-Y';
 
 // ─── LOGGING ────────────────────────────────────────────────

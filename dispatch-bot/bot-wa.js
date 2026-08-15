@@ -310,6 +310,7 @@ async function iniciarBot() {
 
   const ownerJid = OWNER_WA_NUMBER ? `${OWNER_WA_NUMBER}@s.whatsapp.net` : null;
   const ownerLid = OWNER_WA_LID ? `${OWNER_WA_LID}@lid` : null;
+  console.log(`[CONFIG] ownerJid=${ownerJid} ownerLid=${ownerLid} DRY_RUN=${DRY_RUN}`);
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
@@ -322,6 +323,11 @@ async function iniciarBot() {
           msg.message.conversation ||
           msg.message.extendedTextMessage?.text || ''
         ).trim();
+
+        // Debug: loguear todo mensaje entrante privado (no grupos)
+        if (!remoteJid.endsWith('@g.us')) {
+          console.log(`[MSG] remoteJid=${remoteJid} fromMe=${msg.key.fromMe} texto="${texto.slice(0,40)}"`);
+        }
 
         // Comandos del owner — se procesan aunque fromMe=true (el bot corre en la misma cuenta)
         const isOwner = (ownerJid && remoteJid === ownerJid) || (ownerLid && remoteJid === ownerLid);

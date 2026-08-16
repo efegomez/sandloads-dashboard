@@ -297,16 +297,25 @@ async function loadData(){
     "Actualizado: "+new Date().toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"});
 }
 
+const TYPE_META={
+  PB:        {accent:"#00E676", label:"PB"},
+  JK:        {accent:"#FFD54F", label:"JK"},
+  CRANE:     {accent:"#9aa0a8", label:"Crane"},
+  VISTA:     {accent:"#EF9F27", label:"Vista"},
+  BORLAND:   {accent:"#4FC3F7", label:"Borland"},
+  LAMESA:    {accent:"#E53935", label:"Lamesa"},
+  BSS:       {accent:"#26C6DA", label:"BSS"},
+  USSC:      {accent:"#FF7043", label:"USSC"},
+  VISTACRANE:{accent:"#B388FF", label:"Vista-Crane"},
+};
+
 function render(DRIVERS){
-  const pb=DRIVERS.filter(d=>d.type==="PB");
-  const crane=DRIVERS.filter(d=>d.type==="CRANE");
-  const vista=DRIVERS.filter(d=>d.type==="VISTA");
-  const borland=DRIVERS.filter(d=>d.type==="BORLAND");
-  const jk=DRIVERS.filter(d=>d.type==="JK");
-  const lamesa=DRIVERS.filter(d=>d.type==="LAMESA");
-  const bss=DRIVERS.filter(d=>d.type==="BSS");
-  const ussc=DRIVERS.filter(d=>d.type==="USSC");
-  const vistacrane=DRIVERS.filter(d=>d.type==="VISTACRANE");
+  // Orden de las secciones = orden en que aparecen las minas en el excel
+  // (fila por fila, de arriba a abajo), no un orden fijo en el código.
+  // Así, si mañana cambian el orden de los bloques en el sheet, el
+  // dashboard lo refleja solo.
+  const seenTypes=[];
+  DRIVERS.forEach(d=>{ if(!seenTypes.includes(d.type)) seenTypes.push(d.type); });
 
   // Label de sección derivado del texto real de la ruta (sin la hora final),
   // así se adapta solo cuando cambie el destino en el sheet.
@@ -340,42 +349,13 @@ function render(DRIVERS){
     return`<div class='t-row ${rowClass(d)}'><div class='t-accent' style='background:${pal.accent}'></div><div class='t-name'><div class='${nameClass(d)}'>${d.name}</div><div class='t-hour' style='color:${pal.accent}'>${label}</div></div><div class='t-count' style='color:${pal.accent}'>${d.photos}<span style='color:#666;font-weight:400;margin:0 1px'>/</span>${d.qty}</div><div class='t-bar'>${bubbles}</div></div>`;
   }
 
-  if(pb.length){
-    html+=`<div class='section-lbl'><div class='slbl-dot' style='background:#00E676'></div><span style='color:#00E676'>${sectionLabel(pb,"PB")}</span></div>`;
-    pb.forEach(d=>{html+=row(d);});
-  }
-  if(jk.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#FFD54F'></div><span style='color:#FFD54F'>${sectionLabel(jk,"JK")}</span></div>`;
-    jk.forEach(d=>{html+=row(d);});
-  }
-  if(crane.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#9aa0a8'></div><span style='color:#9aa0a8'>${sectionLabel(crane,"Crane")}</span></div>`;
-    crane.forEach(d=>{html+=row(d);});
-  }
-  if(vista.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#EF9F27'></div><span style='color:#EF9F27'>${sectionLabel(vista,"Vista")}</span></div>`;
-    vista.forEach(d=>{html+=row(d);});
-  }
-  if(borland.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#4FC3F7'></div><span style='color:#4FC3F7'>${sectionLabel(borland,"Borland")}</span></div>`;
-    borland.forEach(d=>{html+=row(d);});
-  }
-  if(lamesa.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#E53935'></div><span style='color:#E53935'>${sectionLabel(lamesa,"Lamesa")}</span></div>`;
-    lamesa.forEach(d=>{html+=row(d);});
-  }
-  if(bss.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#26C6DA'></div><span style='color:#26C6DA'>${sectionLabel(bss,"BSS")}</span></div>`;
-    bss.forEach(d=>{html+=row(d);});
-  }
-  if(ussc.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#FF7043'></div><span style='color:#FF7043'>${sectionLabel(ussc,"USSC")}</span></div>`;
-    ussc.forEach(d=>{html+=row(d);});
-  }
-  if(vistacrane.length){
-    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#B388FF'></div><span style='color:#B388FF'>${sectionLabel(vistacrane,"Vista-Crane")}</span></div>`;
-    vistacrane.forEach(d=>{html+=row(d);});
-  }
+  seenTypes.forEach((type,idx)=>{
+    const list=DRIVERS.filter(d=>d.type===type);
+    const meta=TYPE_META[type]||{accent:"#888", label:type};
+    const style=idx===0?"":" style='margin-top:10px'";
+    html+=`<div class='section-lbl'${style}><div class='slbl-dot' style='background:${meta.accent}'></div><span style='color:${meta.accent}'>${sectionLabel(list,meta.label)}</span></div>`;
+    list.forEach(d=>{html+=row(d);});
+  });
   document.getElementById("timeline").innerHTML=html;
 
   const tot=DRIVERS.reduce((s,d)=>s+d.photos,0);

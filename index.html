@@ -33,6 +33,12 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .t-row.row-borland{background:#0a1520}
 .t-row.row-jk{background:#241d05}
 .t-row.row-lamesa{background:#230d0c}
+.t-row.row-done-bss{background:#0d2a30}
+.t-row.row-bss{background:#0a2328}
+.t-row.row-done-ussc{background:#301708}
+.t-row.row-ussc{background:#2a1409}
+.t-row.row-done-vistacrane{background:#251238}
+.t-row.row-vistacrane{background:#1f1030}
 .t-row.row-pending{opacity:.45}
 .t-row.row-no-show{background:#1f0a12}
 .t-row.row-broken{background:#1f0a12}
@@ -53,6 +59,9 @@ body{background:#0a0c10;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',
 .borland-badge{background:#0d1a2e;color:#4FC3F7;border-color:#0277bd}
 .jk-badge{background:#2a2205;color:#FFD54F;border-color:#B38F00}
 .lamesa-badge{background:#2a0e0d;color:#E53935;border-color:#8C1D1B}
+.bss-badge{background:#0a2328;color:#26C6DA;border-color:#00838F}
+.ussc-badge{background:#2a1409;color:#FF7043;border-color:#BF360C}
+.vistacrane-badge{background:#1f1030;color:#B388FF;border-color:#6A1B9A}
 .noshow-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .broken-badge{background:#1f0a12;color:#FF4081;border-color:#b5004c}
 .tick-wrap{display:flex;height:18px;margin-bottom:3px}
@@ -88,6 +97,9 @@ const VISTA   = {accent:"#EF9F27", dim:"#a06800", badgeCls:"vista-badge"};
 const BORLAND = {accent:"#4FC3F7", dim:"#0277bd", badgeCls:"borland-badge"};
 const JK     = {accent:"#FFD54F", dim:"#B38F00", badgeCls:"jk-badge"};
 const LAMESA = {accent:"#E53935", dim:"#8C1D1B", badgeCls:"lamesa-badge"};
+const BSS    = {accent:"#26C6DA", dim:"#00838F", badgeCls:"bss-badge"};
+const USSC   = {accent:"#FF7043", dim:"#BF360C", badgeCls:"ussc-badge"};
+const VISTACRANE = {accent:"#B388FF", dim:"#6A1B9A", badgeCls:"vistacrane-badge"};
 const NOSHOW = {accent:"#FF4081", dim:"#b5004c", badgeCls:"noshow-badge"};
 const BROKEN = {accent:"#FF4081", dim:"#b5004c", badgeCls:"broken-badge"};
 
@@ -104,6 +116,9 @@ function palette(d){
   if(d.type==="BORLAND") return BORLAND;
   if(d.type==="JK")      return JK;
   if(d.type==="LAMESA")  return LAMESA;
+  if(d.type==="BSS")     return BSS;
+  if(d.type==="USSC")    return USSC;
+  if(d.type==="VISTACRANE") return VISTACRANE;
   return PB;
 }
 function rowClass(d){
@@ -113,6 +128,9 @@ function rowClass(d){
     if(d.type==="BORLAND") return "row-done-borland";
     if(d.type==="JK")      return "row-done-jk";
     if(d.type==="LAMESA")  return "row-done-lamesa";
+    if(d.type==="BSS")     return "row-done-bss";
+    if(d.type==="USSC")    return "row-done-ussc";
+    if(d.type==="VISTACRANE") return "row-done-vistacrane";
     return "row-done";
   }
   if(isBroken(d)) return "row-broken";
@@ -124,6 +142,9 @@ function rowClass(d){
   else if(d.type==="BORLAND") base="row-borland";
   else if(d.type==="JK")      base="row-jk";
   else if(d.type==="LAMESA")  base="row-lamesa";
+  else if(d.type==="BSS")     base="row-bss";
+  else if(d.type==="USSC")    base="row-ussc";
+  else if(d.type==="VISTACRANE") base="row-vistacrane";
   else                        base="row-active";
 
   return isIdle(d) ? base+" row-pending" : base;
@@ -159,28 +180,57 @@ function parseRows(rows){
     "pendiente":"pendiente","pending":"pendiente",
   };
 
+  if(!rows.length) return [];
+
+  // Columnas localizadas por el texto del encabezado (fila 0), no por
+  // posición relativa adivinada. El sheet ha cambiado de formato dos veces
+  // en un mes (separador "to" -> guión, y una columna en blanco nueva entre
+  // RUTA y Qty) — anclar a los headers hace que un cambio de columnas no
+  // vuelva a tumbar el parser entero.
+  const header=rows[0]||[];
+  const col=(re)=>header.findIndex(h=>re.test((h||"").trim()));
+  const nameIdx  = col(/driver.*name/i);
+  const truckIdx = col(/truck/i);
+  const rutaIdx  = col(/^ruta$/i);
+  const qtyIdx   = col(/qty/i);
+  const statusIdx= col(/status/i);
+  const photoIdx = col(/photo/i);
+  if(nameIdx<0 || rutaIdx<0) return [];
+
+  // Una fila cuenta como carga activa si la celda RUTA trae a la vez una
+  // mina reconocida y una hora (o "now") — sin importar si el separador es
+  // "to", guión, o nada. Esto también filtra notas sueltas de la misma
+  // columna (roto, no sale, teléfonos, "quiere crane", etc.) que no traen
+  // ambas cosas juntas.
+  const MINA_RE=/vista-?\s*crane|crane|borland|vista|prefill|\bjk\b|lamesa|\bbss\b|\bussc\b/i;
+  const HOUR_RE=/\d{1,2}\s*(am|pm)|\bnow\b/i;
+
   const drivers=[];
+  for(let i=1;i<rows.length;i++){
+    const cells=rows[i];
+    if(!cells||!cells.length) continue;
 
-  for(const cells of rows){
-    // Ruta genérica: "<origen> to <destino> <hora>" — el destino cambia día a día,
-    // así que no dependemos de una lista fija (nash/venom/el arroyo/...).
-    // "Now" también cuenta como hora válida: choferes reasignados a una ruta nueva
-    // el mismo día (terminaron una vuelta y arrancan otra ya, sin hora programada).
-    const rutaIdx=cells.findIndex(v=>/\bto\b.*(\d{1,2}\s*(am|pm)|\bnow\b)/i.test(v||""));
-    if(rutaIdx<2) continue;
+    const ruta=(cells[rutaIdx]||"").trim();
+    if(!MINA_RE.test(ruta) || !HOUR_RE.test(ruta)) continue;
 
-    const ruta=cells[rutaIdx]||"";
-    const type=/crane/i.test(ruta)?"CRANE":/borland/i.test(ruta)?"BORLAND":/vista|prefill/i.test(ruta)?"VISTA":/\bjk\b/i.test(ruta)?"JK":/lamesa/i.test(ruta)?"LAMESA":"PB";
-
-    // Col layout: [... name(rutaIdx-2), truck(rutaIdx-1), route(rutaIdx) ...]
-    const nameFull=(cells[rutaIdx-2]||"").trim();
-    const truck=(cells[rutaIdx-1]||"").trim();
+    const nameFull=(cells[nameIdx]||"").trim();
     if(!nameFull || /^\d/.test(nameFull)) continue;
+    const truck=(truckIdx>=0?cells[truckIdx]:"")||"";
 
-    const qty=parseInt(cells[rutaIdx+1]||"")||5;
-    const stRaw=(cells[rutaIdx+2]||"").toLowerCase().trim();
+    const type=/vista-?\s*crane/i.test(ruta)?"VISTACRANE"
+      :/crane/i.test(ruta)?"CRANE"
+      :/borland/i.test(ruta)?"BORLAND"
+      :/vista|prefill/i.test(ruta)?"VISTA"
+      :/\bjk\b/i.test(ruta)?"JK"
+      :/lamesa/i.test(ruta)?"LAMESA"
+      :/\bbss\b/i.test(ruta)?"BSS"
+      :/\bussc\b/i.test(ruta)?"USSC"
+      :"PB";
+
+    const qty=parseInt((qtyIdx>=0?cells[qtyIdx]:"")||"")||5;
+    const stRaw=((statusIdx>=0?cells[statusIdx]:"")||"").toLowerCase().trim();
     const status=STATUS_NORM[stRaw]||(stRaw?"ACTIVO":"pendiente");
-    const photos=cells.slice(rutaIdx+3).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
+    const photos=(photoIdx>=0?cells.slice(photoIdx):[]).filter(v=>/^\d{6,}$/.test((v||"").trim())).length;
 
     const hm=ruta.match(/(\d{1,2})\s*(am|pm)/i);
     let startH=0;
@@ -193,7 +243,7 @@ function parseRows(rows){
       startH=h;
     }
 
-    drivers.push({name:nameFull.split(/\s+/)[0],truck,startH,qty,photos,status,type,ruta,isNow});
+    drivers.push({name:nameFull.split(/\s+/)[0],truck:truck.trim(),startH,qty,photos,status,type,ruta,isNow});
   }
 
   // Las rutas "Now" (sin hora programada) se ubican a continuación de la
@@ -254,6 +304,9 @@ function render(DRIVERS){
   const borland=DRIVERS.filter(d=>d.type==="BORLAND");
   const jk=DRIVERS.filter(d=>d.type==="JK");
   const lamesa=DRIVERS.filter(d=>d.type==="LAMESA");
+  const bss=DRIVERS.filter(d=>d.type==="BSS");
+  const ussc=DRIVERS.filter(d=>d.type==="USSC");
+  const vistacrane=DRIVERS.filter(d=>d.type==="VISTACRANE");
 
   // Label de sección derivado del texto real de la ruta (sin la hora final),
   // así se adapta solo cuando cambie el destino en el sheet.
@@ -310,6 +363,18 @@ function render(DRIVERS){
   if(lamesa.length){
     html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#E53935'></div><span style='color:#E53935'>${sectionLabel(lamesa,"Lamesa")}</span></div>`;
     lamesa.forEach(d=>{html+=row(d);});
+  }
+  if(bss.length){
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#26C6DA'></div><span style='color:#26C6DA'>${sectionLabel(bss,"BSS")}</span></div>`;
+    bss.forEach(d=>{html+=row(d);});
+  }
+  if(ussc.length){
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#FF7043'></div><span style='color:#FF7043'>${sectionLabel(ussc,"USSC")}</span></div>`;
+    ussc.forEach(d=>{html+=row(d);});
+  }
+  if(vistacrane.length){
+    html+=`<div class='section-lbl' style='margin-top:10px'><div class='slbl-dot' style='background:#B388FF'></div><span style='color:#B388FF'>${sectionLabel(vistacrane,"Vista-Crane")}</span></div>`;
+    vistacrane.forEach(d=>{html+=row(d);});
   }
   document.getElementById("timeline").innerHTML=html;
 

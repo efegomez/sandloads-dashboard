@@ -54,7 +54,7 @@ async function leerFilasHoy(spreadsheetId) {
   const tabName = getTodayKey();
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sid,
-    range: `'${tabName}'!A:W`,
+    range: `'${tabName}'!A1:W50`,
   });
   const allRows = res.data.values || [];
   const driverRows = allRows.map((rowData, i) => ({ rowData, sheetRowIdx: i }));
@@ -91,6 +91,15 @@ async function anotarEnSheet(tabName, sheetRowIdx, rowData, numeroCarga, spreads
     valueInputOption: 'RAW',
     requestBody: { values: [[numeroCarga]] },
   });
+
+  if (numFoto === 1) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sid,
+      range: `'${tabName}'!H${rowNum}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [['ACTIVO']] },
+    });
+  }
 
   // Alinear a la derecha la celda recién escrita
   const meta = await sheets.spreadsheets.get({ spreadsheetId: sid });

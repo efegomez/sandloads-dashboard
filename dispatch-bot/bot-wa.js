@@ -22,12 +22,11 @@ const {
 const SPREADSHEET_ID    = process.env.SPREADSHEET_ID;
 const CHOFERES_SHEET_ID = process.env.CHOFERES_SHEET_ID || SPREADSHEET_ID;
 const TARGET_GROUP_IDS  = (process.env.WA_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
-const OWNER_WA_NUMBER   = process.env.OWNER_WA_NUMBER; // ej: 573001234567 (sin + ni @)
-const OWNER_WA_LID      = process.env.OWNER_WA_LID;    // LID del owner (formato nuevo WA)
+const OWNER_WA_NUMBER   = process.env.OWNER_WA_NUMBER;
+const OWNER_WA_LID      = process.env.OWNER_WA_LID;
 const PORT              = process.env.PORT || 3000;
 const DRY_RUN           = process.env.DRY_RUN === 'true';
 
-// Columna WA en hoja Choferes (E = índice 4, 0-based)
 const COL_WA_PHONE = 4;
 
 // ─── LOGGING ────────────────────────────────────────────────
@@ -37,11 +36,9 @@ console.log   = (...a) => { _log(...a);   writeLog('INFO',  a); };
 console.error = (...a) => { _error(...a); writeLog('ERROR', a); };
 
 // ─── DIRECTORIO WA ──────────────────────────────────────────
-let WA_MAP        = {}; // phone → nombrePrincipal (lowercase)
-let NAME_TO_PHONE = {}; // nombre_lower → phone
+let WA_MAP        = {};
+let NAME_TO_PHONE = {};
 
-// Fotos recibidas de choferes no registrados, pendientes de asignación
-// { phone: [{ groupId, resultado }] }
 const pendingPhotos = {};
 
 async function cargarDirectorioWA() {
@@ -55,8 +52,8 @@ async function cargarDirectorioWA() {
     WA_MAP        = {};
     NAME_TO_PHONE = {};
     for (const row of rows) {
-      const nombre = (row[1] || '').trim(); // Columna B = Driver name
-      const phone  = (row[COL_WA_PHONE] || '').trim(); // Columna E = WA LID
+      const nombre = (row[1] || '').trim();
+      const phone  = (row[COL_WA_PHONE] || '').trim();
       if (phone && nombre) {
         WA_MAP[phone]                      = nombre.toLowerCase();
         NAME_TO_PHONE[nombre.toLowerCase()] = phone;
@@ -81,22 +78,28 @@ async function sendWAMessage(jid, text) {
   await globalSock.sendMessage(jid, { text });
 }
 
+// Cola de notificaciones al owner — máximo 1 cada 2 segundos para evitar ráfagas
+let _notifyQueue = Promise.resolve();
 async function notificarOwner(text) {
   if (!OWNER_WA_LID && !OWNER_WA_NUMBER) {
     console.log('[OWNER]', text);
     return;
   }
-  try {
-    // Siempre envía al owner aunque DRY_RUN esté activo — es mensaje privado, no al grupo
-    if (!globalSock) { console.error('[WA] Socket no disponible para notificar owner'); return; }
-    // Preferir LID (formato nuevo WA) sobre número de teléfono
-    const ownerJidDestino = OWNER_WA_LID
-      ? `${OWNER_WA_LID}@lid`
-      : `${OWNER_WA_NUMBER}@s.whatsapp.net`;
-    await globalSock.sendMessage(ownerJidDestino, { text });
-  } catch (e) {
-    console.error('[OWNER] Error enviando notificación:', e.message);
-  }
+  _notifyQueue = _notifyQueue.then(() => new Promise(resolve => {
+    setTimeout(async () => {
+      try {
+        if (!globalSock) { console.error('[WA] Socket no disponible para notificar owner'); resolve(); return; }
+        const ownerJidDestino = OWNER_WA_LID
+          ? `${OWNER_WA_LID}@lid`
+          : `${OWNER_WA_NUMBER}@s.whatsapp.net`;
+        await globalSock.sendMessage(ownerJidDestino, { text });
+      } catch (e) {
+        console.error('[OWNER] Error enviando notificación:', e.message);
+      }
+      resolve();
+    }, 2000);
+  }));
+  return _notifyQueue;
 }
 
 // ─── CRON NOCTURNO (10 PM Colombia) ─────────────────────────
@@ -170,7 +173,6 @@ async function procesarFotosPendientes(phone) {
 
 // ─── HANDLER: FOTO EN GRUPO ─────────────────────────────
 async function procesarFoto(msg, groupId, downloadFn) {
-  // msg.participant resuelve @lid → número real; key.participant puede venir vacío en WA nuevo
   const senderJid   = msg.participant || msg.key.participant || msg.key.remoteJid;
   const senderPhone = phoneFromJid(senderJid);
   const nombreLog   = WA_MAP[senderPhone] || `wa_${senderPhone}`;
@@ -196,7 +198,6 @@ async function procesarFoto(msg, groupId, downloadFn) {
 
   const nombrePrincipal = WA_MAP[senderPhone];
   if (!nombrePrincipal) {
-    // Chofer desconocido — encolar y notificar al owner sin tocar el grupo
     if (!pendingPhotos[senderPhone]) pendingPhotos[senderPhone] = [];
     pendingPhotos[senderPhone].push({ groupId, resultado });
     await notificarOwner(
@@ -211,7 +212,6 @@ async function procesarFoto(msg, groupId, downloadFn) {
 
 // ─── HANDLER: REGISTRO POR OWNER (mensaje privado) ────────────
 async function procesarRegistroOwner(texto) {
-  // Formato: "registrar LID NombreExacto"
   const partes = texto.replace(/^registrar\s+/i, '').trim().split(/\s+/);
   const phone  = partes[0];
   const nombre = partes.slice(1).join(' ').trim();
@@ -234,7 +234,7 @@ async function procesarRegistroOwner(texto) {
     let principal     = '';
 
     for (let i = 0; i < rows.length; i++) {
-      if (normalizar(rows[i][1] || '') === nombreNorm) { // Columna B
+      if (normalizar(rows[i][1] || '') === nombreNorm) {
         rowIndex  = i + 2;
         principal = (rows[i][1] || '').trim();
         break;
@@ -328,27 +328,33 @@ async function iniciarBot() {
           msg.message.extendedTextMessage?.text || ''
         ).trim();
 
-        // Debug: loguear todo mensaje entrante privado (no grupos)
         if (!remoteJid.endsWith('@g.us')) {
           console.log(`[MSG] remoteJid=${remoteJid} fromMe=${msg.key.fromMe} texto="${texto.slice(0,40)}"`);
         }
 
-        // Comandos del owner — se procesan aunque fromMe=true (el bot corre en la misma cuenta)
+        // Filtro de mensajes viejos — ignorar si tiene más de 5 minutos (evita ráfagas al reconectar)
+        const msgAge = Math.floor(Date.now() / 1000) - (msg.messageTimestamp || 0);
+        if (msgAge > 300) {
+          console.log(`[STALE] Mensaje ignorado (${msgAge}s antiguo)`);
+          continue;
+        }
+
+        // Comandos del owner — se procesan aunque fromMe=true
         const isOwner = (ownerJid && remoteJid === ownerJid) || (ownerLid && remoteJid === ownerLid);
         if (isOwner) {
           if (/^registrar\s+\S+\s+\S/i.test(texto)) {
             await procesarRegistroOwner(texto);
+          } else if (/^recargar$/i.test(texto)) {
+            await cargarDirectorioWA();
+            await notificarOwner(`Directorio recargado: ${Object.keys(WA_MAP).length} choferes registrados.`);
           }
           continue;
         }
 
-        // Ignorar mensajes propios del bot en grupos/otros
         if (msg.key.fromMe) continue;
 
-        // Solo grupos
         if (!remoteJid.endsWith('@g.us')) continue;
 
-        // Filtrar por grupo permitido
         if (TARGET_GROUP_IDS.length && !TARGET_GROUP_IDS.includes(remoteJid)) {
           console.log(`[GRUPO NO PERMITIDO] ${remoteJid}`);
           continue;

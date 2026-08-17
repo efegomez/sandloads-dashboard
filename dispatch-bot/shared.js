@@ -7,7 +7,7 @@ const { google }   = require('googleapis');
 const Anthropic    = require('@anthropic-ai/sdk');
 const fs           = require('fs');
 const path         = require('path');
-const { getTodayKey, getTomorrowKey } = require('./date-keys');
+const { getTodayKey, getTomorrowKey, getTZLabel } = require('./date-keys');
 
 // ─── CONSTANTES ─────────────────────────────────────────────
 const COL_DRIVER      = 2;
@@ -233,7 +233,7 @@ async function copiarProgramacionManana(spreadsheetId, notificarFn) {
 
   const choferes = sourceValues.slice(2).filter(r => (r[COL_DRIVER] || '').trim()).length;
   writeLog('INFO', [`[CRON] ${tabName} copiado — ${choferes} choferes`]);
-  await notificarFn(`Programacion ${tabName} lista\n\n${choferes} choferes copiados a Sandloads TEST.`);
+  await notificarFn(`Programacion ${tabName} lista\n\n${choferes} choferes copiados a Sandloads TEST.\nZona horaria activa: Texas ${getTZLabel()}`);
 }
 
 module.exports = {

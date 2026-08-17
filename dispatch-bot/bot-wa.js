@@ -17,16 +17,18 @@ const {
   COL_TRUCK,
   COL_RUTA,
 } = require('./shared');
+const { getTZLabel } = require('./date-keys');
 
 // ─── CONFIGURACIÓN ──────────────────────────────────────────
 const SPREADSHEET_ID    = process.env.SPREADSHEET_ID;
 const CHOFERES_SHEET_ID = process.env.CHOFERES_SHEET_ID || SPREADSHEET_ID;
 const TARGET_GROUP_IDS  = (process.env.WA_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
-const OWNER_WA_NUMBER   = process.env.OWNER_WA_NUMBER;
-const OWNER_WA_LID      = process.env.OWNER_WA_LID;
+const OWNER_WA_NUMBER   = process.env.OWNER_WA_NUMBER; // ej: 573001234567 (sin + ni @)
+const OWNER_WA_LID      = process.env.OWNER_WA_LID;    // LID del owner (formato nuevo WA)
 const PORT              = process.env.PORT || 3000;
 const DRY_RUN           = process.env.DRY_RUN === 'true';
 
+// Columna WA en hoja Choferes (E = índice 4, 0-based)
 const COL_WA_PHONE = 4;
 
 // ─── LOGGING ────────────────────────────────────────────────
@@ -36,9 +38,11 @@ console.log   = (...a) => { _log(...a);   writeLog('INFO',  a); };
 console.error = (...a) => { _error(...a); writeLog('ERROR', a); };
 
 // ─── DIRECTORIO WA ──────────────────────────────────────────
-let WA_MAP        = {};
-let NAME_TO_PHONE = {};
+let WA_MAP        = {}; // phone → nombrePrincipal (lowercase)
+let NAME_TO_PHONE = {}; // nombre_lower → phone
 
+// Fotos recibidas de choferes no registrados, pendientes de asignación
+// { phone: [{ groupId, resultado }] }
 const pendingPhotos = {};
 
 async function cargarDirectorioWA() {
@@ -52,8 +56,8 @@ async function cargarDirectorioWA() {
     WA_MAP        = {};
     NAME_TO_PHONE = {};
     for (const row of rows) {
-      const nombre = (row[1] || '').trim();
-      const phone  = (row[COL_WA_PHONE] || '').trim();
+      const nombre = (row[1] || '').trim(); // Columna B = Driver name
+      const phone  = (row[COL_WA_PHONE] || '').trim(); // Columna E = WA LID
       if (phone && nombre) {
         WA_MAP[phone]                      = nombre.toLowerCase();
         NAME_TO_PHONE[nombre.toLowerCase()] = phone;
@@ -102,7 +106,7 @@ async function notificarOwner(text) {
   return _notifyQueue;
 }
 
-// ─── CRON NOCTURNO (10 PM Colombia) ─────────────────────────
+// ─── CRON NOCTURNO (10 PM Texas) ─────────────────────────
 cron.schedule('0 22 * * *', async () => {
   try {
     await copiarProgramacionManana(SPREADSHEET_ID, notificarOwner);
@@ -110,10 +114,10 @@ cron.schedule('0 22 * * *', async () => {
     console.error('[CRON] Error en copia nocturna:', err.message);
     await notificarOwner(`Error en copia nocturna: ${err.message}`);
   }
-}, { timezone: 'America/Bogota' });
-console.log('Cron nocturno activo — copia programacion a las 10 PM (Bogota).');
+}, { timezone: 'America/Chicago' });
+console.log('Cron nocturno activo — copia programacion a las 10 PM (Texas).');
 
-// ─── PROCESAR FOTO CONOCIDA ──────────────────────────────
+// ─── PROCESAR FOTO CONOCIDA ──────────────────────────────────
 async function procesarFotoRegistrada(groupId, senderPhone, nombrePrincipal, resultado) {
   let driverRows, tabName;
   try {
@@ -171,8 +175,9 @@ async function procesarFotosPendientes(phone) {
   }
 }
 
-// ─── HANDLER: FOTO EN GRUPO ─────────────────────────────
+// ─── HANDLER: FOTO EN GRUPO ─────────────────────────────────
 async function procesarFoto(msg, groupId, downloadFn) {
+  // msg.participant resuelve @lid → número real; key.participant puede venir vacío en WA nuevo
   const senderJid   = msg.participant || msg.key.participant || msg.key.remoteJid;
   const senderPhone = phoneFromJid(senderJid);
   const nombreLog   = WA_MAP[senderPhone] || `wa_${senderPhone}`;
@@ -198,6 +203,7 @@ async function procesarFoto(msg, groupId, downloadFn) {
 
   const nombrePrincipal = WA_MAP[senderPhone];
   if (!nombrePrincipal) {
+    // Chofer desconocido — encolar y notificar al owner sin tocar el grupo
     if (!pendingPhotos[senderPhone]) pendingPhotos[senderPhone] = [];
     pendingPhotos[senderPhone].push({ groupId, resultado });
     await notificarOwner(
@@ -210,14 +216,15 @@ async function procesarFoto(msg, groupId, downloadFn) {
   await procesarFotoRegistrada(groupId, senderPhone, nombrePrincipal, resultado);
 }
 
-// ─── HANDLER: REGISTRO POR OWNER (mensaje privado) ────────────
+// ─── HANDLER: REGISTRO POR OWNER (mensaje privado) ──────────
 async function procesarRegistroOwner(texto) {
+  // Formato: "registrar 573001234567 NombreExacto"
   const partes = texto.replace(/^registrar\s+/i, '').trim().split(/\s+/);
   const phone  = partes[0];
   const nombre = partes.slice(1).join(' ').trim();
 
   if (!phone || !nombre) {
-    await notificarOwner('Formato: registrar LID NombreExacto\nEjemplo: registrar 60083052494849 Juan Perez');
+    await notificarOwner('Formato: registrar TELEFONO NombreExacto\nEjemplo: registrar 573001234567 Juan Perez');
     return;
   }
 
@@ -234,7 +241,7 @@ async function procesarRegistroOwner(texto) {
     let principal     = '';
 
     for (let i = 0; i < rows.length; i++) {
-      if (normalizar(rows[i][1] || '') === nombreNorm) {
+      if (normalizar(rows[i][1] || '') === nombreNorm) { // Columna B
         rowIndex  = i + 2;
         principal = (rows[i][1] || '').trim();
         break;
@@ -257,8 +264,8 @@ async function procesarRegistroOwner(texto) {
     NAME_TO_PHONE[principal.toLowerCase()] = phone;
     NAME_TO_PHONE[nombre.toLowerCase()]    = phone;
 
-    console.log(`Registrado WA (owner): ${nombre} → ${phone}`);
-    await notificarOwner(`Registrado: ${nombre} (${phone})`);
+    console.log(`Registrado WA (owner): ${nombre} → +${phone}`);
+    await notificarOwner(`Registrado: ${nombre} (+${phone})`);
 
     await procesarFotosPendientes(phone);
   } catch (e) {
@@ -298,6 +305,7 @@ async function iniciarBot() {
       if (!TARGET_GROUP_IDS.length) {
         console.log('[ADVERTENCIA] WA_GROUP_IDS vacio — procesando todos los grupos (modo debug).');
       }
+      notificarOwner(`Bot WA conectado\nZona horaria: Texas ${getTZLabel()} — pestanas por hora de Texas.`);
     }
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
@@ -328,6 +336,7 @@ async function iniciarBot() {
           msg.message.extendedTextMessage?.text || ''
         ).trim();
 
+        // Debug: loguear todo mensaje entrante privado (no grupos)
         if (!remoteJid.endsWith('@g.us')) {
           console.log(`[MSG] remoteJid=${remoteJid} fromMe=${msg.key.fromMe} texto="${texto.slice(0,40)}"`);
         }
@@ -339,7 +348,7 @@ async function iniciarBot() {
           continue;
         }
 
-        // Comandos del owner — se procesan aunque fromMe=true
+        // Comandos del owner — se procesan aunque fromMe=true (el bot corre en la misma cuenta)
         const isOwner = (ownerJid && remoteJid === ownerJid) || (ownerLid && remoteJid === ownerLid);
         if (isOwner) {
           if (/^registrar\s+\S+\s+\S/i.test(texto)) {
@@ -351,10 +360,13 @@ async function iniciarBot() {
           continue;
         }
 
+        // Ignorar mensajes propios del bot en grupos/otros
         if (msg.key.fromMe) continue;
 
+        // Solo grupos
         if (!remoteJid.endsWith('@g.us')) continue;
 
+        // Filtrar por grupo permitido
         if (TARGET_GROUP_IDS.length && !TARGET_GROUP_IDS.includes(remoteJid)) {
           console.log(`[GRUPO NO PERMITIDO] ${remoteJid}`);
           continue;

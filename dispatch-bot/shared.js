@@ -146,7 +146,7 @@ async function extraerDatosImagen(imagenBase64, mimeType) {
         },
         {
           type: 'text',
-          text: `Analiza esta imagen de un chofer de carga de arena.\n\n1. Si es pantalla de la app Newmile (señales: interfaz móvil, botones "Aceptar Carga" o "Descargado", número de carga de 7 dígitos):\n   → Extrae el número de 7 dígitos y responde: NEWMILE|1234567\n\n2. Cualquier otra imagen (tickets de papel, SandCo, Damp SandCo, BOL, fotos de camión, etc.):\n   → Responde: IGNORAR\n\nResponde SOLO en el formato indicado, sin texto adicional.`,
+          text: `Analiza esta imagen enviada por un chofer de arena.\n\nSolo responde NEWMILE|XXXXXXX si la imagen es una CAPTURA DE PANTALLA DIGITAL de la app Newmile: pantalla de celular con interfaz de app (fondo digital, texto de app, botones como "Aceptar Carga" o "Descargado") y un número de carga de 7 dígitos visible.\n\nEn TODOS los demás casos responde: IGNORAR\n\nSiempre son IGNORAR aunque tengan números de 7 dígitos escritos a mano o impresos:\n- Tickets de papel físico (Big Spring Sands, US Silica, SandCo, Damp SandCo, o cualquier otra empresa)\n- Bills of Lading (BOL) impresos\n- Cualquier documento físico fotografiado\n- Fotos de camiones, remolques o equipos\n- Cualquier imagen que NO sea captura de pantalla digital de la app Newmile\n\nResponde SOLO en el formato indicado, sin texto adicional.`,
         },
       ],
     }],
